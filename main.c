@@ -42,8 +42,6 @@ int main()
         printf("1.直接輸入骰子點數 用空格隔開 Example: 2 5 6\n");
         printf("2.如果要查看歷史紀錄 請輸入7 7 7\n");
         
-        
-        
         if( (dice.a < 7) && (dice.b < 7) && (dice.c <7) )
         {
             arr[counter][0] = dice.a;
