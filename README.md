@@ -6,7 +6,7 @@ This is a recorder to help me remember the log of dice.
 
 
 
-＝＝＝＝＝＝＝＝＝＝＝all the content is useless, those content is just help me learn to Markdown.=====================
+＝＝＝＝＝＝ all the content is useless, those content is just help me learn to Markdown. ＝＝＝＝＝＝＝＝
 大标题
 ===================================
 大标题一般显示工程名,类似html的<h1><br />
