@@ -1,8 +1,17 @@
 # df_dice
 
-玩“三六仔”的時候的紀錄器 沒有gui. 只能用command line.
+玩“三六仔”的時候的紀錄器 沒有做gui. 只能用command line.
+用Ｃ寫成
+
+目前只能輸入數字 輸入其他的會無限迴圈 目前想到的解法要大改 有好的都可以跟我說
 
 This is a recorder to help me remember the log of dice.
+I use C to programe it.
+It is allowed to input number only.
+If you input else charactor,it would get into infinit loop.
+I don't have a good idea to modify it,you can share your idea if you have any idea.
+
+I am a little lazy to make a english version. If you really need it(i don't think this is so useful),I will make it.
 
 
 
