@@ -47,7 +47,7 @@ int main()
         return 0;
     }
 
-    int counter = 1;
+    int counter = 0;
     dice_st *dice = (dice_st *)calloc(1000, sizeof(*dice));
 
     //on screen display
@@ -76,7 +76,7 @@ int main()
         printf("2.如果要查看歷史紀錄 請輸入7 7 7\n");
         */
         // 判斷介於1到6之間  零用乘法判斷
-        if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && (dice[counter].a * dice[counter].b * dice[counter].c != 0))
+        if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && ( (dice[counter].a * dice[counter].b * dice[counter].c )!= 0))
         { //write into log file
             fprintf(fp_out, "第%d個：%d %d %d\n", counter, dice[counter].a, dice[counter].b, dice[counter].c);
             counter++;
@@ -106,7 +106,7 @@ int main()
             return 0;
         }
         else
-        {
+        {   
             printf("輸入錯誤 重新輸入\n");
         }
     }
