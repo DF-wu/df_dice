@@ -2,72 +2,68 @@
 #include <stdlib.h>
 #include <string.h>
 
+int i = 0;
 
-int arr[9999][3] ;
-int counter = 1;
-int i=0;
-
- struct dice_st
+typedef struct
 {
     int a;
     int b;
     int c;
-    int d;  //useless
-};
+    int d; //useless
+} dice_st;
 
-void Delete(int target)
+void Delete(int counter, int target)
 {
-    int after_target_remaining = 0 ;
-    
-    after_target_remaining = counter - (target) ;
-    
+    int after_target_remaining = 0;
+
+    after_target_remaining = counter - (target);
 }
 // df proj test
 // test 2
 
-// test 3
-
+// test 3dd
 
 int main()
 {
-    struct dice_st  dice;
-    
+    FILE *fp;
+    fp = fopen("dice_log.txt", "r");
+
+    if (fp == NULL)
+    {
+        printf("moteher fucker\n");
+        return 0;
+    }
+
+    int counter = 1;
+    dice_st *dice = (dice_st *)calloc(1000, sizeof(*dice));
+
     printf("指令如下：\n");
     printf("1.直接輸入骰子點數 用空格隔開 Example: 2 5 6\n");
     printf("2.如果要查看歷史紀錄 請輸入7 7 7\n");
-    
-    while( scanf("%d%d%d",&dice.a,&dice.b,&dice.c) != EOF )
+
+    while (scanf("%d%d%d", &dice[counter].a, &dice[counter].b, &dice[counter].c) != EOF)
     {
         printf("指令如下：\n");
         printf("1.直接輸入骰子點數 用空格隔開 Example: 2 5 6\n");
         printf("2.如果要查看歷史紀錄 請輸入7 7 7\n");
-        
-        if( (dice.a < 7) && (dice.b < 7) && (dice.c <7) )
+
+        if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7))
         {
-            arr[counter][0] = dice.a;
-            arr[counter][1] = dice.b;
-            arr[counter][2] = dice.c;
             counter++;
         }
-        
-        
-        else if( (dice.a == 7) && (dice.b == 7) && (dice.c == 7) )
+
+        else if ((dice[counter].a == 7) && (dice[counter].b == 7) && (dice[counter].c == 7))
         {
             printf("history\n");
-            for(i=0; i<counter; i++)
+            for (i = 0; i < counter; i++)
             {
-                
-                printf("第%d個是 %d %d %d\n",i+1,arr[i][0],arr[i][1],arr[i][2]);
-                
+
+                printf("第%d個是 %d %d %d\n", i + 1, dice[counter].a, dice[counter].b, dice[counter].c);
             }
         }
         else
         {
             printf("輸入錯誤 重新輸入\n");
         }
-        
     }
-    
-    
 }
-
