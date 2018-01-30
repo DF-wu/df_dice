@@ -15,7 +15,7 @@ It is allowed to input number only.
 If you input else charactor,it would get into infinit loop.
 I don't have a good idea to modify it,you can share your idea if you have any idea.
 
-I am a little lazy to make a english version. If you really need it(i don't think this is so useful),I will make it.
+I am little lazy to make a english version. If you really need it(i don't think this is so useful),I will make it.
 
 
 
