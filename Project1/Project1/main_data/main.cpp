@@ -8,8 +8,10 @@ typedef struct
     int a;
     int b;
     int c;
-    int d; //useless
+    int sum; //總和
 } dice_st;
+
+
 
 void Show_Introduction(void)
 {
@@ -22,7 +24,7 @@ void Show_Introduction(void)
     //5. 有4個\n
 }
 
-void Write_to_File(FILE *fp_out)
+void Write_Introduction_to_File(FILE *fp_out)
 {
     fprintf(fp_out, "指令如下：\n");
     fprintf(fp_out, "1.直接輸入骰子點數 用空格隔開 Example:2 5 6\n");
@@ -32,6 +34,11 @@ void Write_to_File(FILE *fp_out)
     fprintf(fp_out, "5.關閉程式前必須先關閉檔案，否則紀錄會遺失\n");
     fprintf(fp_out, "格式為:\n");
     fprintf(fp_out, "序號 骰子1 骰子2 骰子3\n");
+
+}
+
+void Write_records_into_Buffer(int counter, dice_st dice)
+{
 
 }
 
@@ -83,15 +90,25 @@ int main()
     Show_Introduction();
 
     //write the buffer of log to file
-    Write_to_File(fp_out);
+    Write_Introduction_to_File(fp_out);
 
     while (scanf("%d%d%d", &dice[counter].a, &dice[counter].b, &dice[counter].c) != EOF)
     {
 
         // 判斷介於1到6之間  零用乘法判斷
         if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && ((dice[counter].a * dice[counter].b * dice[counter].c) != 0))
-        { //write into log file
-            fprintf(fp_out, "第%d個：%d %d %d\n", counter, dice[counter].a, dice[counter].b, dice[counter].c);
+        {   //write into log file
+            fprintf(fp_out, "第%d個：%d %d %d", counter, dice[counter].a, dice[counter].b, dice[counter].c);
+            dice[counter].sum = dice[counter].a + dice[counter].b + dice[counter].c;
+            //判斷大小
+            if(dice[counter].sum > 9)
+            {
+                fprintf(fp_out, "總合為%2d 大\n", dice[counter].sum);
+            }
+            else
+            {
+                fprintf(fp_out, "總合為%2d 小\n", dice[counter].sum);
+            }
             counter++;
         }
 
@@ -100,8 +117,15 @@ int main()
             printf("歷史紀錄:\n");
             for (i = 0; i < counter; i++)
             {
-
-                printf("第%d個是 %d %d %d\n", i + 1, dice[i].a, dice[i].b, dice[i].c);
+                printf("第%d個是 %d %d %d 總合%2d ", i + 1, dice[i].a, dice[i].b, dice[i].c,dice[i].sum);
+                if (dice[i].sum > 9)
+                {
+                    printf("大\n");
+                }
+                else
+                {
+                    printf("小\n");
+                }
             }
         }
         else if ((dice[counter].a == 8) && (dice[counter].b == 8) && (dice[counter].c == 8))
@@ -111,7 +135,6 @@ int main()
         else if ((dice[counter].a == 0) && (dice[counter].b == 0) && (dice[counter].c == 0))
         {
             printf("檔案完成寫入\n");
-            return 0;
         }
         else
         {
