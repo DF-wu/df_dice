@@ -103,7 +103,7 @@ int main()
         }
         else if ((dice[counter].a == 8) && (dice[counter].b == 8) && (dice[counter].c == 8))
         {
-            Show_Introduction;
+            Show_Introduction();
         }
         else if ((dice[counter].a == 0) && (dice[counter].b == 0) && (dice[counter].c == 0))
         {
