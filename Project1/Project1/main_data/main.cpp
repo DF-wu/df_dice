@@ -11,56 +11,18 @@ typedef struct
     int d; //useless
 } dice_st;
 
-
-//useless now
-void Delete(int counter, int target)
+void Show_Introduction(void)
 {
-    int after_target_remaining = 0;
-
-    after_target_remaining = counter - (target);
-}
-// df proj test
-// test 2
-
-// test 3dd
-
-int main()
-{
-    int i;
-    FILE *fp_out;
-    fp_out = fopen("dice_log.txt", "w");
-    /* Mod:
-    * "r" : 開啟檔案，以純文字方式[讀取]。
-    * "w" : 開啟或建立檔案，以純文字方式[寫入]，會複寫原先的資料。
-    * "a" : 開啟或建立檔案，以純文字方式[寫入]，並將檔案指標移到最後。
-    * "rb" : 同 "r" 但以二進位(binary)方式[讀取]。
-    * "wb" : 同 "w" 但以二進位(binary)方式[寫入]。
-    * "ab" : 同 "a" 但以二進位(binary)方式[寫入]。
-    * "r+" : 同 "r" 但同時具有[讀取/寫入]的權力
-    * "w+" : 同 "w" 但同時具有[讀取/寫入]的權力
-    * "a+" : 同 "a" 但同時具有[讀取/寫入]的權力
-    * "rb+" : 同 "rb" 但同時具有[讀取/寫入]的權力
-    * "wb+" : 同 "wb" 但同時具有[讀取/寫入]的權力
-    * "ab+" : 同 "ab" 但同時具有[讀取/寫入]的權力。
-    */
-    if (fp_out == NULL)
-    {
-        printf("Idiot creat the file first!\n");
-        return 0;
-    }
-
-    int counter = 0;
-    dice_st *dice = (dice_st *)calloc(1000, sizeof(*dice));
-
-    //on screen display
     printf("指令如下：\n");
     printf("1.直接輸入骰子點數 用空格隔開 Example: 2 5 6\n");
     printf("2.想要查看指令的話 請輸入8 8 8\n");
     printf("3.如果要查看歷史紀錄 請輸入7 7 7\n");
     printf("4.關閉檔案後才可將歷史資料寫入檔案內,關閉檔案指令為0 0 0\n");
     printf("5.關閉程式前必須先關閉檔案，否則紀錄會遺失\n");
+}
 
-    //write to buffer of log file
+void Write_to_File(FILE *fp_out)
+{
     fprintf(fp_out, "指令如下：\n");
     fprintf(fp_out, "1.直接輸入骰子點數 用空格隔開 Example:2 5 6\n");
     fprintf(fp_out, "2.想要查看指令的話 請輸入8 8 8\n");
@@ -70,15 +32,61 @@ int main()
     fprintf(fp_out, "格式為:\n");
     fprintf(fp_out, "序號 骰子1 骰子2 骰子3\n");
 
+}
+
+//useless now
+void Delete(int counter, int target)
+{
+    int after_target_remaining = 0;
+
+    after_target_remaining = counter - (target);
+}
+
+
+int main()
+{
+    int i;
+    FILE *fp_in;
+    FILE *fp_out;
+    fp_in  = fopen("dice_log.txt", "r");
+    fp_out = fopen("dice_log.txt", "w");
+    char *read_buffer;
+    
+    if (fp_out == NULL)
+    {
+        printf("Idiot,creat dice_log.txt first!\n");
+        return 0;
+    }
+
+    if (fp_in == NULL)
+    {
+        printf("沒有存在記錄檔，建立新檔案\n");
+    }
+    else
+    {   /*跳過n行讀取  ref:https://zhidao.baidu.com/question/357349762.html */
+        for (i = 0; i < 6; i++)
+        {
+            fscanf(fp_in, "%*[^\n]%*c");  //跳過n行
+        }
+
+    }
+
+    
+
+    int counter = 0;
+    dice_st *dice = (dice_st *)calloc(1000, sizeof(*dice));
+
+    //on screen display
+    Show_Introduction();
+
+    //write the buffer of log to file
+    Write_to_File(fp_out);
+
     while (scanf("%d%d%d", &dice[counter].a, &dice[counter].b, &dice[counter].c) != EOF)
     {
-        /*
-        printf("指令如下：\n");
-        printf("1.直接輸入骰子點數 用空格隔開 Example: 2 5 6\n");
-        printf("2.如果要查看歷史紀錄 請輸入7 7 7\n");
-        */
+
         // 判斷介於1到6之間  零用乘法判斷
-        if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && ( (dice[counter].a * dice[counter].b * dice[counter].c )!= 0))
+        if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && ((dice[counter].a * dice[counter].b * dice[counter].c) != 0))
         { //write into log file
             fprintf(fp_out, "第%d個：%d %d %d\n", counter, dice[counter].a, dice[counter].b, dice[counter].c);
             counter++;
@@ -95,12 +103,7 @@ int main()
         }
         else if ((dice[counter].a == 8) && (dice[counter].b == 8) && (dice[counter].c == 8))
         {
-            printf("指令如下：\n");
-            printf("1.直接輸入骰子點數 用空格隔開 Example:2 5 6\n");
-            printf("2.想要查看指令的話 請輸入8 8 8\n");
-            printf("3.如果要查看歷史紀錄 請輸入7 7 7\n");
-            printf("4.關閉檔案後才可將歷史資料寫入檔案內,關閉檔案指令為0 0 0\n");
-            printf("5.關閉程式前必須先關閉檔案，否則紀錄會遺失\n");
+            Show_Introduction;
         }
         else if ((dice[counter].a == 0) && (dice[counter].b == 0) && (dice[counter].c == 0))
         {
@@ -108,7 +111,7 @@ int main()
             return 0;
         }
         else
-        {   
+        {
             printf("輸入錯誤 重新輸入\n");
         }
     }
