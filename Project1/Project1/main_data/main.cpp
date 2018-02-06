@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+ï»¿#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,32 +8,32 @@ typedef struct
     int a;
     int b;
     int c;
-    int sum; //Á`©M
+    int sum; //ç¸½å’Œ
 } dice_st;
 
 
 
 void Show_Introduction(void)
 {
-    printf("«ü¥O¦p¤U¡G\n");
-    printf("1.ª½±µ¿é¤J»ë¤lÂI¼Æ ¥ÎªÅ®æ¹j¶} Example: 2 5 6\n");
-    printf("2.·Q­n¬d¬İ«ü¥Oªº¸Ü ½Ğ¿é¤J8 8 8\n");
-    printf("3.¦pªG­n¬d¬İ¾ú¥v¬ö¿ı ½Ğ¿é¤J7 7 7\n");
-    printf("4.Ãö³¬ÀÉ®×«á¤~¥i±N¾ú¥v¸ê®Æ¼g¤JÀÉ®×¤º,Ãö³¬ÀÉ®×«ü¥O¬°0 0 0\n");
-    printf("5.Ãö³¬µ{¦¡«e¥²¶·¥ıÃö³¬ÀÉ®×¡A§_«h¬ö¿ı·|¿ò¥¢\nÃö³¬µ{¦¡«e¥²¶·¥ıÃö³¬ÀÉ®×¡A§_«h¬ö¿ı·|¿ò¥¢\nÃö³¬µ{¦¡«e¥²¶·¥ıÃö³¬ÀÉ®×¡A§_«h¬ö¿ı·|¿ò¥¢\n«Ü­«­n ©Ò¥H»¡¤T¦¸\n");
-    //5. ¦³4­Ó\n
+    printf("æŒ‡ä»¤å¦‚ä¸‹ï¼š\n");
+    printf("1.ç›´æ¥è¼¸å…¥éª°å­é»æ•¸ ç”¨ç©ºæ ¼éš”é–‹ Example: 2 5 6\n");
+    printf("2.æƒ³è¦æŸ¥çœ‹æŒ‡ä»¤çš„è©± è«‹è¼¸å…¥8 8 8\n");
+    printf("3.å¦‚æœè¦æŸ¥çœ‹æ­·å²ç´€éŒ„ è«‹è¼¸å…¥7 7 7\n");
+    printf("4.é—œé–‰æª”æ¡ˆå¾Œæ‰å¯å°‡æ­·å²è³‡æ–™å¯«å…¥æª”æ¡ˆå…§,é—œé–‰æª”æ¡ˆæŒ‡ä»¤ç‚º0 0 0\n");
+    printf("5.é—œé–‰ç¨‹å¼å‰å¿…é ˆå…ˆé—œé–‰æª”æ¡ˆï¼Œå¦å‰‡ç´€éŒ„æœƒéºå¤±\né—œé–‰ç¨‹å¼å‰å¿…é ˆå…ˆé—œé–‰æª”æ¡ˆï¼Œå¦å‰‡ç´€éŒ„æœƒéºå¤±\né—œé–‰ç¨‹å¼å‰å¿…é ˆå…ˆé—œé–‰æª”æ¡ˆï¼Œå¦å‰‡ç´€éŒ„æœƒéºå¤±\nå¾ˆé‡è¦ æ‰€ä»¥èªªä¸‰æ¬¡\n");
+    //5. æœ‰4å€‹\n
 }
 
 void Write_Introduction_to_File(FILE *fp_out)
 {
-    fprintf(fp_out, "«ü¥O¦p¤U¡G\n");
-    fprintf(fp_out, "1.ª½±µ¿é¤J»ë¤lÂI¼Æ ¥ÎªÅ®æ¹j¶} Example:2 5 6\n");
-    fprintf(fp_out, "2.·Q­n¬d¬İ«ü¥Oªº¸Ü ½Ğ¿é¤J8 8 8\n");
-    fprintf(fp_out, "3.¦pªG­n¬d¬İ¾ú¥v¬ö¿ı ½Ğ¿é¤J7 7 7\n");
-    fprintf(fp_out, "4.Ãö³¬ÀÉ®×«á¤~¥i±N¾ú¥v¸ê®Æ¼g¤JÀÉ®×¤º,Ãö³¬ÀÉ®×«ü¥O¬°0 0 0\n");
-    fprintf(fp_out, "5.Ãö³¬µ{¦¡«e¥²¶·¥ıÃö³¬ÀÉ®×¡A§_«h¬ö¿ı·|¿ò¥¢\n");
-    fprintf(fp_out, "®æ¦¡¬°:\n");
-    fprintf(fp_out, "§Ç¸¹ »ë¤l1 »ë¤l2 »ë¤l3\n");
+    fprintf(fp_out, "æŒ‡ä»¤å¦‚ä¸‹ï¼š\n");
+    fprintf(fp_out, "1.ç›´æ¥è¼¸å…¥éª°å­é»æ•¸ ç”¨ç©ºæ ¼éš”é–‹ Example:2 5 6\n");
+    fprintf(fp_out, "2.æƒ³è¦æŸ¥çœ‹æŒ‡ä»¤çš„è©± è«‹è¼¸å…¥8 8 8\n");
+    fprintf(fp_out, "3.å¦‚æœè¦æŸ¥çœ‹æ­·å²ç´€éŒ„ è«‹è¼¸å…¥7 7 7\n");
+    fprintf(fp_out, "4.é—œé–‰æª”æ¡ˆå¾Œæ‰å¯å°‡æ­·å²è³‡æ–™å¯«å…¥æª”æ¡ˆå…§,é—œé–‰æª”æ¡ˆæŒ‡ä»¤ç‚º0 0 0\n");
+    fprintf(fp_out, "5.é—œé–‰ç¨‹å¼å‰å¿…é ˆå…ˆé—œé–‰æª”æ¡ˆï¼Œå¦å‰‡ç´€éŒ„æœƒéºå¤±\n");
+    fprintf(fp_out, "æ ¼å¼ç‚º:\n");
+    fprintf(fp_out, "åºè™Ÿ éª°å­1 éª°å­2 éª°å­3\n");
 
 }
 
@@ -67,16 +67,16 @@ int main()
     }
 
 
-    //¥¼§¹¤u
+    //æœªå®Œå·¥
     if (fp_in == NULL)
     {
-        printf("¨S¦³¦s¦b°O¿ıÀÉ¡A«Ø¥ß·sÀÉ®×\n");
+        printf("æ²’æœ‰å­˜åœ¨è¨˜éŒ„æª”ï¼Œå»ºç«‹æ–°æª”æ¡ˆ\n");
     }
     else
-    {   /*¸õ¹Ln¦æÅª¨ú  ref:https://zhidao.baidu.com/question/357349762.html */
+    {   /*è·³énè¡Œè®€å–  ref:https://zhidao.baidu.com/question/357349762.html */
         for (i = 0; i < 6; i++)
         {
-            fscanf(fp_in, "%*[^\n]%*c");  //¸õ¹Ln¦æ
+            fscanf(fp_in, "%*[^\n]%*c");  //è·³énè¡Œ
         }
 
     }
@@ -95,36 +95,36 @@ int main()
     while (scanf("%d%d%d", &dice[counter].a, &dice[counter].b, &dice[counter].c) != EOF)
     {
 
-        // §PÂ_¤¶©ó1¨ì6¤§¶¡  ¹s¥Î­¼ªk§PÂ_
+        // åˆ¤æ–·ä»‹æ–¼1åˆ°6ä¹‹é–“  é›¶ç”¨ä¹˜æ³•åˆ¤æ–·
         if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && ((dice[counter].a * dice[counter].b * dice[counter].c) != 0))
         {   //write into log file
-            fprintf(fp_out, "²Ä%d­Ó¡G%d %d %d", counter, dice[counter].a, dice[counter].b, dice[counter].c);
+            fprintf(fp_out, "ç¬¬%då€‹ï¼š%d %d %d", counter, dice[counter].a, dice[counter].b, dice[counter].c);
             dice[counter].sum = dice[counter].a + dice[counter].b + dice[counter].c;
-            //§PÂ_¤j¤p
+            //åˆ¤æ–·å¤§å°
             if(dice[counter].sum > 9)
             {
-                fprintf(fp_out, "Á`¦X¬°%2d ¤j\n", dice[counter].sum);
+                fprintf(fp_out, "ç¸½åˆç‚º%2d å¤§\n", dice[counter].sum);
             }
             else
             {
-                fprintf(fp_out, "Á`¦X¬°%2d ¤p\n", dice[counter].sum);
+                fprintf(fp_out, "ç¸½åˆç‚º%2d å°\n", dice[counter].sum);
             }
             counter++;
         }
 
         else if ((dice[counter].a == 7) && (dice[counter].b == 7) && (dice[counter].c == 7))
         {
-            printf("¾ú¥v¬ö¿ı:\n");
+            printf("æ­·å²ç´€éŒ„:\n");
             for (i = 0; i < counter; i++)
             {
-                printf("²Ä%d­Ó¬O %d %d %d Á`¦X%2d ", i + 1, dice[i].a, dice[i].b, dice[i].c,dice[i].sum);
+                printf("ç¬¬%då€‹æ˜¯ %d %d %d ç¸½åˆ%2d ", i + 1, dice[i].a, dice[i].b, dice[i].c,dice[i].sum);
                 if (dice[i].sum > 9)
                 {
-                    printf("¤j\n");
-                }
+                    printf("å¤§\n");
+                }   
                 else
                 {
-                    printf("¤p\n");
+                    printf("å°\n");
                 }
             }
         }
@@ -134,12 +134,12 @@ int main()
         }
         else if ((dice[counter].a == 0) && (dice[counter].b == 0) && (dice[counter].c == 0))
         {
-            printf("ÀÉ®×§¹¦¨¼g¤J\n");
+            printf("æª”æ¡ˆå®Œæˆå¯«å…¥\n");
         }
         else
         {
-            printf("¿é¤J¿ù»~ ­«·s¿é¤J\n");
+            printf("è¼¸å…¥éŒ¯èª¤ é‡æ–°è¼¸å…¥\n");
         }
     }
-    printf("¥iÃö³¬µ{¦¡\n");
+    printf("å¯é—œé–‰ç¨‹å¼\n");
 }
