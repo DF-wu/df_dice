@@ -81,7 +81,8 @@ int main()
 
     }
 
-    
+    //test
+
 
     int counter = 0;
     dice_st *dice = (dice_st *)calloc(1000, sizeof(*dice));
