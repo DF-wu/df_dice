@@ -11,6 +11,18 @@ typedef struct
     int sum; //總和
 } dice_st;
 
+void BigOrSmall(int n, char *str)
+{
+    if (n > 9)
+    {
+        str = "大";
+    }
+    else
+    {
+        str = "小";
+    }
+}
+
 void Show_Introduction(void)
 {
     printf("指令如下：\n");
@@ -78,6 +90,11 @@ int main()
     */
 
     //test
+
+    char str[20];
+    BigOrSmall(10, str);
+
+    printf("%s\n", str);
 
     int counter = 0;
     dice_st *dice = (dice_st *)calloc(1000, sizeof(*dice));
