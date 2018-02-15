@@ -11,16 +11,18 @@ typedef struct
     int sum; //總和
 } dice_st;
 
-void BigOrSmall(int n, char *str)
+
+char *BigOrSmall(int n, char *str)
 {
     if (n > 9)
     {
-        str = "大";
+        str = { "大" };
     }
     else
     {
-        str = "小";
+        str = { "小" };
     }
+    return str;
 }
 
 void Show_Introduction(void)
@@ -60,16 +62,24 @@ void Delete(int counter, int target)
 
 int main()
 {
+    /*
+    char *str = {"123"};
+    printf("%s\n",BigOrSmall(9, str));
+    */
+
     int i;
     FILE *fp_in;
     FILE *fp_out;
-    fp_in = fopen("dice_log.txt", "r");
+    /*要做讀取檔案的指標*/
+    // fp_in = fopen("dice_log.txt", "r"); 
+    //
     fp_out = fopen("dice_log.txt", "w");
+    
     char *read_buffer;
 
     if (fp_out == NULL)
     {
-        printf("Idiot,creat dice_log.txt first!\n");
+        printf("Idiot,Creating dice_log.txt First!\n");
         return 0;
     }
 
@@ -80,7 +90,7 @@ int main()
         printf("沒有存在記錄檔，建立新檔案\n");
     }
     else
-    {   // 跳過n行讀取  ref:https://zhidao.baidu.com/question/357349762.html 
+    {   // 跳過n行讀取                       ref:https://zhidao.baidu.com/question/357349762.html
         for (i = 0; i < 6; i++)
         {
             fscanf(fp_in, "%*[^\n]%*c");  //跳過n行
@@ -91,12 +101,11 @@ int main()
 
     //test
 
-    char str[20];
-    BigOrSmall(10, str);
 
-    printf("%s\n", str);
 
     int counter = 0;
+    char *str_BigSmall = { "零" };  //存大小 字元的
+
     dice_st *dice = (dice_st *)calloc(1000, sizeof(*dice));
 
     //on screen display
@@ -106,33 +115,17 @@ int main()
     Write_Introduction_to_File(fp_out);
 
     while (scanf("%d%d%d", &dice[counter].a, &dice[counter].b, &dice[counter].c) != EOF)
-    {
+    {   
+        dice[counter].sum = dice[counter].a + dice[counter].b + dice[counter].c;
 
         // 判斷介於1到6之間  零用乘法判斷
         if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && ((dice[counter].a * dice[counter].b * dice[counter].c) != 0))
         { //write into log file
-            fprintf(fp_out, "第%d個：%d %d %d 總合為%2d ", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum);
-            dice[counter].sum = dice[counter].a + dice[counter].b + dice[counter].c;
-            //判斷大小
-            if (dice[counter].sum > 9)
-            {
-                fprintf(fp_out, "大\n");
-            }
-            else
-            {
-                fprintf(fp_out, "小\n");
-            }
-
+            fprintf(fp_out, "第%d個：%d %d %d 總合為%2d %s\n", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum, BigOrSmall(dice[counter].sum, str_BigSmall));
+    
             //show on screen
-            printf("第%d個：%d %d %d 總合為%2d ", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum);
-            if (dice[counter].sum > 9)
-            {
-                printf("大\n");
-            }
-            else
-            {
-                printf("小\n");
-            }
+            printf("第%d個：%d %d %d 總合為%2d %s\n", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum, BigOrSmall(dice[counter].sum, str_BigSmall));
+
             counter++;
         }
         else if ((dice[counter].a == 7) && (dice[counter].b == 7) && (dice[counter].c == 7))
@@ -140,15 +133,7 @@ int main()
             printf("歷史紀錄:\n");
             for (i = 0; i < counter; i++)
             {
-                printf("第%d個：%d %d %d 總合%2d ", i + 1, dice[i].a, dice[i].b, dice[i].c, dice[i].sum);
-                if (dice[i].sum > 9)
-                {
-                    printf("大\n");
-                }
-                else
-                {
-                    printf("小\n");
-                }
+                printf("第%d個：%d %d %d 總合%2d %s\n", i + 1, dice[i].a, dice[i].b, dice[i].c, dice[i].sum, BigOrSmall(dice[counter].sum, str_BigSmall));
             }
         }
         else if ((dice[counter].a == 8) && (dice[counter].b == 8) && (dice[counter].c == 8))
