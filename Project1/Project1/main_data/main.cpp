@@ -142,12 +142,14 @@ int main()
         }
         else if ((dice[counter].a == 0) && (dice[counter].b == 0) && (dice[counter].c == 0))
         {
+            fclose(fp_out);
             printf("檔案完成寫入\n");
+            printf("可關閉程式\n");
         }
         else
         {
             printf("輸入錯誤 重新輸入\n");
         }
     }
-    printf("可關閉程式\n");
+    
 }
