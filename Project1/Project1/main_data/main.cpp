@@ -133,7 +133,7 @@ int main()
             printf("歷史紀錄:\n");
             for (i = 0; i < counter; i++)
             {
-                printf("第%d個：%d %d %d 總合%2d %s\n", i + 1, dice[i].a, dice[i].b, dice[i].c, dice[i].sum, BigOrSmall(dice[i].sum, str_BigSmall));
+                printf("第%d個：%d %d %d 總合為%2d %s\n", i + 1, dice[i].a, dice[i].b, dice[i].c, dice[i].sum, BigOrSmall(dice[i].sum, str_BigSmall));
             }
         }
         else if ((dice[counter].a == 8) && (dice[counter].b == 8) && (dice[counter].c == 8))
