@@ -14,7 +14,7 @@ typedef struct
 
 char *BigOrSmall(int n, char *str)
 {
-    if (n > 9)
+    if (n > 10)
     {
         str = { "大" };
     }
