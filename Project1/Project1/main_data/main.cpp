@@ -20,7 +20,7 @@ char *BigOrSmall(int n, char *str)
     }
     else
     {
-        str = { "小" };
+        str = { "    小" };
     }
     return str;
 }
@@ -121,10 +121,10 @@ int main()
         // 判斷介於1到6之間  零用乘法判斷
         if ((dice[counter].a < 7) && (dice[counter].b < 7) && (dice[counter].c < 7) && ((dice[counter].a * dice[counter].b * dice[counter].c) != 0))
         { //write into log file
-            fprintf(fp_out, "第%d個：%d %d %d 總合為%2d %s\n", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum, BigOrSmall(dice[counter].sum, str_BigSmall));
+            fprintf(fp_out, "第%3d個：%d %d %d 總合為%2d %s\n", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum, BigOrSmall(dice[counter].sum, str_BigSmall));
     
             //show on screen
-            printf("第%d個：%d %d %d 總合為%2d %s\n", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum, BigOrSmall(dice[counter].sum, str_BigSmall));
+            printf("第%3d個：%d %d %d 總合為%2d %s\n", counter + 1, dice[counter].a, dice[counter].b, dice[counter].c, dice[counter].sum, BigOrSmall(dice[counter].sum, str_BigSmall));
 
             counter++;
         }
@@ -133,7 +133,7 @@ int main()
             printf("歷史紀錄:\n");
             for (i = 0; i < counter; i++)
             {
-                printf("第%d個：%d %d %d 總合為%2d %s\n", i + 1, dice[i].a, dice[i].b, dice[i].c, dice[i].sum, BigOrSmall(dice[i].sum, str_BigSmall));
+                printf("第%3d個：%d %d %d 總合為%2d %s\n", i + 1, dice[i].a, dice[i].b, dice[i].c, dice[i].sum, BigOrSmall(dice[i].sum, str_BigSmall));
             }
         }
         else if ((dice[counter].a == 8) && (dice[counter].b == 8) && (dice[counter].c == 8))
