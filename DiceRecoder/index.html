@@ -72,6 +72,8 @@
 </head>
 <body>
     <div class="display">
+        <h2>規則</h2>
+        <div></div>
         <div class="dicePanel"></div>
         <div class="control">
             <button id="btnReset">Reset</button>
@@ -136,7 +138,7 @@
                     row += ` <b>${record.third}</b>`;
                     const sum = record.first + record.second + record.third;
                     let res = sum > 10 ? "大" : "小";
-                    if (record.first === record.second && record.second === record.third && record.first === 4) res = "圍";
+                    if (record.first === record.second && record.second === record.third ) res = "豹子";
                     row += ` ${res} ${sum}`;
 
                     switch (res) {
@@ -146,7 +148,7 @@
                         case "小":
                             row = row.replace("<li>", "<li class='small'>")
                         break;
-                        case "圍":
+                        case "豹子":
                             row = row.replace("<li>", "<li class='sp'>")
                         break;
                     }
