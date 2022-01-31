@@ -1,193 +1,244 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DiceRecoder</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DiceRecorder</title>
 
     <style>
-        body {
-            font-family: sans-serif;
-        }
+      body {
+        font-family: sans-serif;
+        display: flex;
+        justify-content: center;
+      }
 
+      .display {
+        position: relative;
+        top: 50px;
+      }
+
+      .dice {
+        cursor: pointer;
+        width: 128px;
+        height: 128px;
+        padding: 0;
+        margin: 5px;
+        border-radius: 15px;
+        background-color: white;
+      }
+      .dice:hover {
+        background-color: orangered;
+      }
+
+      .histories {
+        font-size: 18pt;
+      }
+      .probability {
+        font-size: 14pt;
+      }
+      .probability > div {
+        margin: 0.3em 0;
+      }
+
+      li.large {
+        color: red;
+      }
+      li.small {
+        color: green;
+      }
+      li.sp {
+        color: blue;
+      }
+
+      .resultPanel {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 1em;
+      }
+
+      button {
+        background-color: darkcyan;
+        color: white;
+        border-radius: 5px;
+        padding: 8px 20px;
+        cursor: pointer;
+        font-weight: bold;
+        border: none;
+      }
+      button:hover {
+        filter: brightness(120%);
+      }
+
+      .control,
+      h2,
+      .resultPanel {
+        padding-left: 5px;
+      }
+
+      @media screen and (min-width: 800px) {
         .display {
-            position: relative;
-            top: 50px;
-            width: 450px;
-            left: calc(50vw - 200px);
+          display: grid;
+          grid-template-rows: 3em 17em 1fr;
+          grid-template-areas:
+            "title ."
+            "dice result"
+            "control result";
+          gap: 1em;
         }
-
-        .dice {
-            cursor: pointer;
-            width: 128px;
-            height: 128px;
-            padding: 0;
-            margin: 5px;
-            border-radius: 15px;
-            background-color: white;
+        h2 {
+          grid-area: title;
         }
-        .dice:hover {
-            background-color: orangered;
+        .dicePanel {
+          grid-area: dice;
         }
-
-        .histories {
-            font-size: 18pt;
+        .control {
+          grid-area: control;
         }
-        .probability {
-            font-size: 14pt;
-        }
-
-        li.large {
-            color: red;
-        }
-        li.small {
-            color: green;
-        }
-        li.sp {
-            color: blue;
-        }
-
         .resultPanel {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
+          grid-area: result;
+          flex-direction: row-reverse;
         }
-
-        button {
-            background-color: cyan;
-            border-radius: 12px;
-            padding: 8px 20px;
-            cursor: pointer;
-            font-weight: bold;
+        .histories > ul {
+          margin: 0;
         }
-        button:hover {
-            background-color: skyblue;
-            color: marron;
+      }
+      @media screen and (max-width: 450px) {
+        .dice {
+          width: 96px;
+          height: 96px;
+          box-shadow: inset 0 0 0 2px black;
         }
-        button:focus {
-            outline: none;
-        }
+      }
     </style>
-</head>
-<body>
+  <script async src='/cdn-cgi/bm/cv/669835187/api.js'></script></head>
+  <body>
     <div class="display">
-        <h2>規則</h2>
-        <div></div>
-        <div class="dicePanel"></div>
-        <div class="control">
-            <button id="btnReset">Reset</button>
-        </div>
-        <div class="resultPanel">
-            <div class="histories"></div>
-            <div class="probability"></div>
-        </div>
+      <h2>規則</h2>
+      <div class="dicePanel"></div>
+      <div class="control">
+        <button id="btnReset">Reset</button>
+      </div>
+      <div class="resultPanel">
+        <div class="histories"></div>
+        <div class="probability"></div>
+      </div>
     </div>
 
     <script>
-        const dicePanel = document.querySelector(".dicePanel");
-        const historiesDiv = document.querySelector(".histories");
-        const probabilityDiv = document.querySelector(".probability");
-        let historiesList = [];
+      const dicePanel = document.querySelector(".dicePanel");
+      const historiesDiv = document.querySelector(".histories");
+      const probabilityDiv = document.querySelector(".probability");
+      let historiesList = [];
+
+      for (let i = 1; i <= 6; ++i) {
+        dicePanel.innerHTML += `<img class="dice" src="dice/dice${i}.png" alt="dice${i}" onclick="add(${i})">`;
+        if (i === 3) dicePanel.innerHTML += "<br/>";
+      }
+
+      if (localStorage.getItem("dice_history")) {
+        historiesList = JSON.parse(localStorage.getItem("dice_history"));
+        render();
+        renderProbability();
+      }
+
+      document.getElementById("btnReset").addEventListener("click", () => {
+        historiesList = [];
+        historiesDiv.innerHTML = "";
+        probabilityDiv.innerHTML = "";
+        localStorage.clear();
+      });
+
+      function add(num) {
+        let latest = historiesList[historiesList.length - 1];
+        if (!historiesList.length || latest.stage === 3) {
+          latest = {
+            first: num,
+            stage: 1,
+          };
+          historiesList.push(latest);
+        } else {
+          if (latest.stage === 1) {
+            latest.second = num;
+          } else {
+            latest.third = num;
+          }
+          latest.stage += 1;
+        }
+
+        render();
+        renderProbability();
+        localStorage.setItem("dice_history", JSON.stringify(historiesList));
+      }
+
+      function render() {
+        let output = "";
+        [...historiesList].reverse().forEach(({ first, second, third }) => {
+          let row = `<li><b>${first}</b>`;
+          if (second) row += ` <b>${second}</b>`;
+          if (third) {
+            row += ` <b>${third}</b>`;
+            const sum = first + second + third;
+            let res = sum > 10 ? "大" : "小";
+            if (first === second && second === third) {
+              res = "豹子";
+            }
+            row += ` ${res} ${sum}`;
+
+            switch (res) {
+              case "大":
+                row = row.replace("<li>", "<li class='large'>");
+                break;
+              case "小":
+                row = row.replace("<li>", "<li class='small'>");
+                break;
+              case "豹子":
+                row = row.replace("<li>", "<li class='sp'>");
+                break;
+            }
+          }
+          row += "</li>";
+          output += row;
+        });
+        historiesDiv.innerHTML += `<ul>${output}</ul>`;
+      }
+
+      function renderProbability() {
+        probabilityDiv.innerHTML = "";
+        const sumUp = [0, 0, 0, 0, 0, 0];
+        const resList = [0, 0, 0];
+
+        historiesList.forEach(({ first, second, third }) => {
+          sumUp[first - 1]++;
+          if (second) sumUp[second - 1]++;
+          if (third) {
+            sumUp[third - 1]++;
+
+            const sum = first + second + third;
+            if (first === second && second === third && first === 4) {
+              resList[2]++;
+            } else resList[sum > 10 ? 0 : 1]++;
+          }
+        });
+        const total = sumUp.reduce((pre, cur) => pre + cur, 0);
 
         for (let i = 1; i <= 6; ++i) {
-            dicePanel.innerHTML += `<img class="dice" src="dice/dice${i}.png" alt="dice${i}" onclick="add(${i})">`;
-            if (i === 3) dicePanel.innerHTML += "<br/>";
+          probabilityDiv.innerHTML += `<div><img src="dice/dice${i}.png" width="16" height="16"> <span>${
+            parseInt((10000 * sumUp[i - 1]) / total) / 100.0
+          }%</span></div>`;
         }
 
-        if (localStorage.getItem("dice_history")) {
-            historiesList = JSON.parse(localStorage.getItem("dice_history"));
-            render();
-            renderProbability();
-        }
-
-        document.getElementById("btnReset").addEventListener("click", () => {
-            historiesList = [];
-            historiesDiv.innerHTML = "";
-            probabilityDiv.innerHTML = "";
-            localStorage.clear();
-        });
-
-
-        function add(num) {
-            if (!historiesList.length || historiesList[historiesList.length - 1].stage <= 3) {
-                if (!historiesList.length || historiesList[historiesList.length - 1].stage === 3) {
-                    historiesList.push({
-                        first: num,
-                        stage: 1
-                    });
-                } else {
-                    if (historiesList[historiesList.length - 1].stage === 1)
-                        historiesList[historiesList.length - 1].second = num
-                    else historiesList[historiesList.length - 1].third = num
-                    historiesList[historiesList.length - 1].stage += 1;
-                }
-
-                render();
-                renderProbability();
-                localStorage.setItem("dice_history", JSON.stringify(historiesList));
-            }
-        }
-
-        function render() {
-            historiesDiv.innerHTML = "<ul>";
-            [...historiesList].reverse().forEach(record => {
-                let row = `<li><b>${record.first}</b>`;
-                if (record.second) row += ` <b>${record.second}</b>`;
-                if (record.third) {
-                    row += ` <b>${record.third}</b>`;
-                    const sum = record.first + record.second + record.third;
-                    let res = sum > 10 ? "大" : "小";
-                    if (record.first === record.second && record.second === record.third ) res = "豹子";
-                    row += ` ${res} ${sum}`;
-
-                    switch (res) {
-                        case "大":
-                            row = row.replace("<li>", "<li class='large'>")
-                        break;
-                        case "小":
-                            row = row.replace("<li>", "<li class='small'>")
-                        break;
-                        case "豹子":
-                            row = row.replace("<li>", "<li class='sp'>")
-                        break;
-                    }
-                }
-                row += "</li>";
-                historiesDiv.innerHTML += row;
-            });
-            historiesDiv.innerHTML += "</ul>";
-        }
-
-        function renderProbability() {
-            probabilityDiv.innerHTML = "";
-            const sumUp = [0,0,0,0,0,0];
-            const resList = [0,0,0];
-
-            historiesList.forEach(record => {
-                sumUp[record.first - 1]++;
-                if (record.second) sumUp[record.second - 1]++;
-                if (record.third) {
-                    sumUp[record.third - 1]++;
-
-                    const sum = record.first + record.second + record.third;
-                    if (record.first === record.second && record.second === record.third && record.first === 4) {
-                        resList[2]++;
-                    } else resList[sum > 10 ? 0 : 1]++;
-                }
-            });
-            let total = 0;
-            sumUp.forEach(n => total += n);
-
-            for (let i = 1; i <= 6; ++i)
-                probabilityDiv.innerHTML += `<p><img src="dice/dice${i}.png" width="16" height="16"> <span>${parseInt(10000 * sumUp[i - 1] / total) / 100.0}%</span></p>`;
-            
-            probabilityDiv.innerHTML += "<p></p>"
-            
-            probabilityDiv.innerHTML += `<p><span style="color:red">大</span> ${parseInt(10000 * resList[0] / total) / 100.0}%</p>`;
-            probabilityDiv.innerHTML += `<p><span style="color:green">小</span> ${parseInt(10000 * resList[1] / total) / 100.0}%</p>`;
-            probabilityDiv.innerHTML += `<p><span style="color:blue">圍</span> ${parseInt(10000 * resList[2] / total) / 100.0}%</p>`;
-        }
+        probabilityDiv.innerHTML += `<div><span style="color:red">大</span> ${
+          parseInt((10000 * resList[0]) / total) / 100.0
+        }%</div>`;
+        probabilityDiv.innerHTML += `<div><span style="color:green">小</span> ${
+          parseInt((10000 * resList[1]) / total) / 100.0
+        }%</div>`;
+        probabilityDiv.innerHTML += `<div><span style="color:blue">圍</span> ${
+          parseInt((10000 * resList[2]) / total) / 100.0
+        }%</div>`;
+      }
     </script>
-</body>
+  <script type="text/javascript">(function(){window['__CF$cv$params']={r:'6d65aebcfeab5700',m:'eVlE.7OkgjZlMDpkCnsm.qQFPNl_SJnciB_hS6Z9SL0-1643660866-0-AW2r45447oBqhvpjXFdgonitKBCbjNzeK50Sd6JHJkOQm2hKMEXazRlwO9dZehyUwdFhedL+vjwf0y+oqpP3M9nKQ5ilqw55X0OlzNHKqknCmIQdAYjyWmeDhihS7va5Pc0hX9/o2iOjSyu+WnEsCEIMVMj57LUtzVexhvfZGUpjExBUY29cIEKPcVaUJ7kbYQ==',s:[0xafefa9e745,0x834c02967d],}})();</script></body>
 </html>
