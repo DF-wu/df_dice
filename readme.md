@@ -40,7 +40,7 @@ python -m http.server 5173
 
 - Settings → Pages → Build and deployment
 - Source 選 `Deploy from a branch`
-- Branch 選 `main`（或你的分支）+ `/ (root)`
+- Branch 選 `master`（或你的分支）+ `/ (root)`
 
 ## 資料存放
 
