@@ -1,0 +1,9 @@
+{
+  "name": "df-dice-recorder",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1",
+    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=./*.js --test-coverage-exclude=./tests/** --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100"
+  }
+}

@@ -1,244 +1,140 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DiceRecorder</title>
+    <title>df dice recorder</title>
+    <meta name="description" content="三骰(大小/豹子)紀錄與統計工具，支援多局、匯入/匯出與基本偏骰檢查。" />
 
-    <style>
-      body {
-        font-family: sans-serif;
-        display: flex;
-        justify-content: center;
-      }
-
-      .display {
-        position: relative;
-        top: 50px;
-      }
-
-      .dice {
-        cursor: pointer;
-        width: 128px;
-        height: 128px;
-        padding: 0;
-        margin: 5px;
-        border-radius: 15px;
-        background-color: white;
-      }
-      .dice:hover {
-        background-color: orangered;
-      }
-
-      .histories {
-        font-size: 18pt;
-      }
-      .probability {
-        font-size: 14pt;
-      }
-      .probability > div {
-        margin: 0.3em 0;
-      }
-
-      li.large {
-        color: red;
-      }
-      li.small {
-        color: green;
-      }
-      li.sp {
-        color: blue;
-      }
-
-      .resultPanel {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        gap: 1em;
-      }
-
-      button {
-        background-color: darkcyan;
-        color: white;
-        border-radius: 5px;
-        padding: 8px 20px;
-        cursor: pointer;
-        font-weight: bold;
-        border: none;
-      }
-      button:hover {
-        filter: brightness(120%);
-      }
-
-      .control,
-      h2,
-      .resultPanel {
-        padding-left: 5px;
-      }
-
-      @media screen and (min-width: 800px) {
-        .display {
-          display: grid;
-          grid-template-rows: 3em 17em 1fr;
-          grid-template-areas:
-            "title ."
-            "dice result"
-            "control result";
-          gap: 1em;
-        }
-        h2 {
-          grid-area: title;
-        }
-        .dicePanel {
-          grid-area: dice;
-        }
-        .control {
-          grid-area: control;
-        }
-        .resultPanel {
-          grid-area: result;
-          flex-direction: row-reverse;
-        }
-        .histories > ul {
-          margin: 0;
-        }
-      }
-      @media screen and (max-width: 450px) {
-        .dice {
-          width: 96px;
-          height: 96px;
-          box-shadow: inset 0 0 0 2px black;
-        }
-      }
-    </style>
-  <script async src='/cdn-cgi/bm/cv/669835187/api.js'></script></head>
+    <link rel="icon" href="dice/dice6.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
   <body>
-    <div class="display">
-      <h2>規則</h2>
-      <div class="dicePanel"></div>
-      <div class="control">
-        <button id="btnReset">Reset</button>
-      </div>
-      <div class="resultPanel">
-        <div class="histories"></div>
-        <div class="probability"></div>
-      </div>
-    </div>
+    <main class="app" role="application">
+      <header class="appHeader">
+        <div class="brand">
+          <div class="brandTitle">df dice recorder</div>
+          <div class="brandSubtitle">三骰紀錄 | 大 / 小 / 豹子</div>
+        </div>
 
-    <script>
-      const dicePanel = document.querySelector(".dicePanel");
-      const historiesDiv = document.querySelector(".histories");
-      const probabilityDiv = document.querySelector(".probability");
-      let historiesList = [];
+        <div class="sessionControls">
+          <label class="field">
+            <span>局</span>
+            <select id="sessionSelect" aria-label="選擇局"></select>
+          </label>
+          <button id="btnNewSession" type="button">新局</button>
+          <button id="btnRenameSession" type="button" class="ghost">改名</button>
+          <button id="btnDeleteSession" type="button" class="danger">刪局</button>
+        </div>
+      </header>
 
-      for (let i = 1; i <= 6; ++i) {
-        dicePanel.innerHTML += `<img class="dice" src="dice/dice${i}.png" alt="dice${i}" onclick="add(${i})">`;
-        if (i === 3) dicePanel.innerHTML += "<br/>";
-      }
+      <section class="grid">
+        <section class="card inputCard">
+          <div class="cardHeader">
+            <h2>輸入</h2>
+            <div class="kbdHint">快捷鍵：`1-6` | `Backspace` | `Esc`</div>
+          </div>
+          <div id="dicePad" class="dicePad" aria-label="骰子輸入盤"></div>
 
-      if (localStorage.getItem("dice_history")) {
-        historiesList = JSON.parse(localStorage.getItem("dice_history"));
-        render();
-        renderProbability();
-      }
+          <div class="draft" aria-label="本回合">
+            <div class="draftTitle">本回合</div>
+            <div id="draftDice" class="draftDice"></div>
+            <div id="draftMeta" class="draftMeta"></div>
+          </div>
 
-      document.getElementById("btnReset").addEventListener("click", () => {
-        historiesList = [];
-        historiesDiv.innerHTML = "";
-        probabilityDiv.innerHTML = "";
-        localStorage.clear();
-      });
+          <div class="actions">
+            <button id="btnUndo" type="button" class="ghost">撤銷最新</button>
+            <button id="btnClearDraft" type="button" class="ghost">清空本回合</button>
+            <button id="btnResetSession" type="button" class="danger">清空本局</button>
+          </div>
 
-      function add(num) {
-        let latest = historiesList[historiesList.length - 1];
-        if (!historiesList.length || latest.stage === 3) {
-          latest = {
-            first: num,
-            stage: 1,
-          };
-          historiesList.push(latest);
-        } else {
-          if (latest.stage === 1) {
-            latest.second = num;
-          } else {
-            latest.third = num;
-          }
-          latest.stage += 1;
-        }
+          <div class="io">
+            <button id="btnExportJson" type="button" class="ghost">匯出 JSON</button>
+            <button id="btnExportCsv" type="button" class="ghost">匯出 CSV</button>
 
-        render();
-        renderProbability();
-        localStorage.setItem("dice_history", JSON.stringify(historiesList));
-      }
+            <label class="ghost fileBtn" for="fileImport">匯入 JSON</label>
+            <input id="fileImport" type="file" accept="application/json" />
+          </div>
 
-      function render() {
-        let output = "";
-        [...historiesList].reverse().forEach(({ first, second, third }) => {
-          let row = `<li><b>${first}</b>`;
-          if (second) row += ` <b>${second}</b>`;
-          if (third) {
-            row += ` <b>${third}</b>`;
-            const sum = first + second + third;
-            let res = sum > 10 ? "大" : "小";
-            if (first === second && second === third) {
-              res = "豹子";
-            }
-            row += ` ${res} ${sum}`;
+          <div class="note">
+            資料只存在你的瀏覽器 localStorage。建議定期匯出 JSON 做備份。
+          </div>
+        </section>
 
-            switch (res) {
-              case "大":
-                row = row.replace("<li>", "<li class='large'>");
-                break;
-              case "小":
-                row = row.replace("<li>", "<li class='small'>");
-                break;
-              case "豹子":
-                row = row.replace("<li>", "<li class='sp'>");
-                break;
-            }
-          }
-          row += "</li>";
-          output += row;
-        });
-        historiesDiv.innerHTML += `<ul>${output}</ul>`;
-      }
+        <section class="card statsCard">
+          <div class="cardHeader">
+            <h2>統計</h2>
+            <div id="statsSummary" class="statsSummary"></div>
+          </div>
 
-      function renderProbability() {
-        probabilityDiv.innerHTML = "";
-        const sumUp = [0, 0, 0, 0, 0, 0];
-        const resList = [0, 0, 0];
+          <div class="statsGrid">
+            <section class="statsBlock">
+              <h3>點數分布 (所有骰)</h3>
+              <div id="faceStats" class="statsList"></div>
+              <div id="chiSquare" class="muted"></div>
+            </section>
 
-        historiesList.forEach(({ first, second, third }) => {
-          sumUp[first - 1]++;
-          if (second) sumUp[second - 1]++;
-          if (third) {
-            sumUp[third - 1]++;
+            <section class="statsBlock">
+              <h3>和值分布 (每回合)</h3>
+              <div id="sumStats" class="statsList"></div>
+              <div id="sumMoments" class="muted"></div>
+            </section>
 
-            const sum = first + second + third;
-            if (first === second && second === third && first === 4) {
-              resList[2]++;
-            } else resList[sum > 10 ? 0 : 1]++;
-          }
-        });
-        const total = sumUp.reduce((pre, cur) => pre + cur, 0);
+            <section class="statsBlock span2">
+              <h3>結果 / 連莊</h3>
+              <div id="resultStats" class="statsList"></div>
+              <div id="streakStats" class="muted"></div>
+            </section>
 
-        for (let i = 1; i <= 6; ++i) {
-          probabilityDiv.innerHTML += `<div><img src="dice/dice${i}.png" width="16" height="16"> <span>${
-            parseInt((10000 * sumUp[i - 1]) / total) / 100.0
-          }%</span></div>`;
-        }
+            <section class="statsBlock">
+              <h3>單雙 (不含豹子)</h3>
+              <div id="oddEvenStats" class="statsList"></div>
+            </section>
 
-        probabilityDiv.innerHTML += `<div><span style="color:red">大</span> ${
-          parseInt((10000 * resList[0]) / total) / 100.0
-        }%</div>`;
-        probabilityDiv.innerHTML += `<div><span style="color:green">小</span> ${
-          parseInt((10000 * resList[1]) / total) / 100.0
-        }%</div>`;
-        probabilityDiv.innerHTML += `<div><span style="color:blue">圍</span> ${
-          parseInt((10000 * resList[2]) / total) / 100.0
-        }%</div>`;
-      }
-    </script>
-  <script type="text/javascript">(function(){window['__CF$cv$params']={r:'6d65aebcfeab5700',m:'eVlE.7OkgjZlMDpkCnsm.qQFPNl_SJnciB_hS6Z9SL0-1643660866-0-AW2r45447oBqhvpjXFdgonitKBCbjNzeK50Sd6JHJkOQm2hKMEXazRlwO9dZehyUwdFhedL+vjwf0y+oqpP3M9nKQ5ilqw55X0OlzNHKqknCmIQdAYjyWmeDhihS7va5Pc0hX9/o2iOjSyu+WnEsCEIMVMj57LUtzVexhvfZGUpjExBUY29cIEKPcVaUJ7kbYQ==',s:[0xafefa9e745,0x834c02967d],}})();</script></body>
+            <section class="statsBlock span2">
+              <h3>對子 / 豹子</h3>
+              <div id="pairStats" class="statsList"></div>
+              <div class="muted">指定對子(含豹子)：某點數在回合中出現 2 次以上</div>
+              <div id="doubleStats" class="statsList"></div>
+            </section>
+
+            <section class="statsBlock span2">
+              <h3>熱門牌型 Top 10</h3>
+              <ol id="patternTop" class="patternTop"></ol>
+            </section>
+          </div>
+        </section>
+
+        <section class="card historyCard">
+          <div class="historyHeader">
+            <h2>紀錄</h2>
+            <div class="historyControls">
+              <label class="field">
+                <span>顯示</span>
+                <select id="filterSelect" aria-label="篩選紀錄">
+                  <option value="all">全部</option>
+                  <option value="big">大</option>
+                  <option value="small">小</option>
+                  <option value="triple">豹子</option>
+                </select>
+              </label>
+              <button id="btnCopySummary" type="button" class="ghost">複製摘要</button>
+            </div>
+          </div>
+
+          <ol id="historyList" class="historyList" aria-label="紀錄列表"></ol>
+        </section>
+      </section>
+
+      <footer class="footer">Made for dice battle. No server, no tracking.</footer>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
 </html>
