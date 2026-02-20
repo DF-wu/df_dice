@@ -18,9 +18,22 @@ function formatOutcomeLabel(outcome) {
   }
 }
 
-function renderBar(rate) {
+function outcomeClass(outcome) {
+  switch (outcome) {
+    case "big":
+      return "trend-big";
+    case "small":
+      return "trend-small";
+    case "triple":
+      return "trend-triple";
+    default:
+      return "";
+  }
+}
+
+function renderBar(rate, extraClass = "") {
   const pct = Math.min(100, Math.round(rate * 100));
-  return `<span class="pct-bar"><span class="pct-fill" style="width:${pct}%"></span></span>`;
+  return `<span class="pct-bar${extraClass ? " " + extraClass : ""}"><span class="pct-fill" style="width:${pct}%"></span></span>`;
 }
 
 export function renderHistory(container, history) {
@@ -31,7 +44,8 @@ export function renderHistory(container, history) {
     return;
   }
 
-  const rows = [...rounds].reverse().map((round) => {
+  const rows = [...rounds].reverse().map((round, index) => {
+    const roundNum = rounds.length - index;
     const values = round.rolls
       .map(
         (v) =>
@@ -44,7 +58,7 @@ export function renderHistory(container, history) {
         { length: 3 - round.rolls.length },
         () => `<span class="dice-empty"></span>`,
       ).join("");
-      return `<li class="in-progress"><span class="roll-values">${values}${empties}</span><span class="progress-tag"> 進行中 (${round.rolls.length}/3)</span></li>`;
+      return `<li class="in-progress"><span class="round-num">#${roundNum}</span><span class="roll-values">${values}${empties}</span><span class="progress-tag"> 進行中 (${round.rolls.length}/3)</span></li>`;
     }
 
     const analyzed = analyzeCompletedRound(round);
@@ -67,7 +81,7 @@ export function renderHistory(container, history) {
       tags.push("順子");
     }
 
-    return `<li class="${cssClass}"><span class="roll-values">${values}</span><span class="roll-tags">${tags.map((t) => `<span class="tag">${t}</span>`).join("")}</span></li>`;
+    return `<li class="${cssClass}"><span class="round-num">#${roundNum}</span><span class="roll-values">${values}</span><span class="roll-tags">${tags.map((t) => `<span class="tag">${t}</span>`).join("")}</span></li>`;
   });
 
   container.innerHTML = `<ul>${rows.join("")}</ul>`;
@@ -82,22 +96,30 @@ export function renderStatistics(container, stats) {
   const faceRows = stats.faceCounts
     .map(
       (count, index) =>
-        `<li class="face-row"><img src="dice/dice${index + 1}.png" width="22" height="22" alt="dice${index + 1}"><span class="face-count">${count}</span><span class="face-pct">${formatPercent(stats.faceRates[index])}</span>${renderBar(stats.faceRates[index])}</li>`,
+        `<li class="face-row"><img src="dice/dice${index + 1}.png" width="22" height="22" alt="dice${index + 1}"><span class="face-count">${count}</span><span class="face-pct">${formatPercent(stats.faceRates[index])}</span>${renderBar(stats.faceRates[index], "bar-neutral")}</li>`,
     )
     .join("");
 
   const sumRows = Object.keys(stats.sumCounts)
     .map(
       (sum) =>
-        `<li class="sum-row"><span class="sum-label">${sum}</span><span class="sum-count">${stats.sumCounts[sum]}</span><span class="sum-pct">${formatPercent(stats.sumRates[sum])}</span></li>`,
+        `<li class="sum-row"><span class="sum-label">${sum}</span><span class="sum-count">${stats.sumCounts[sum]}</span><span class="sum-pct">${formatPercent(stats.sumRates[sum])}</span>${renderBar(stats.sumRates[sum], "bar-sum")}</li>`,
     )
     .join("");
 
   const hotText = stats.hotNumbers.length ? stats.hotNumbers.join(", ") : "-";
   const coldText = stats.coldNumbers.length ? stats.coldNumbers.join(", ") : "-";
+
   const trendText = stats.recentOutcomes.length
-    ? stats.recentOutcomes.map((entry) => formatOutcomeLabel(entry)).join(" › ")
+    ? stats.recentOutcomes
+        .map((entry) => {
+          const label = formatOutcomeLabel(entry);
+          const cls = outcomeClass(entry);
+          return cls ? `<span class="trend-chip ${cls}">${label}</span>` : label;
+        })
+        .join("")
     : "-";
+
   const streakType = stats.streak.currentType ? formatOutcomeLabel(stats.streak.currentType) : "-";
 
   container.innerHTML = `
@@ -129,17 +151,17 @@ export function renderStatistics(container, stats) {
     <section>
       <h3 class="stat-heading">單雙分佈</h3>
       <ul class="outcome-list">
-        <li>單: ${stats.parityCounts.odd}<span class="pct"> (${formatPercent(stats.parityRates.odd)})</span>${renderBar(stats.parityRates.odd)}</li>
-        <li>雙: ${stats.parityCounts.even}<span class="pct"> (${formatPercent(stats.parityRates.even)})</span>${renderBar(stats.parityRates.even)}</li>
+        <li>單: ${stats.parityCounts.odd}<span class="pct"> (${formatPercent(stats.parityRates.odd)})</span>${renderBar(stats.parityRates.odd, "bar-neutral")}</li>
+        <li>雙: ${stats.parityCounts.even}<span class="pct"> (${formatPercent(stats.parityRates.even)})</span>${renderBar(stats.parityRates.even, "bar-neutral")}</li>
       </ul>
     </section>
 
     <section>
       <h3 class="stat-heading">型態統計</h3>
       <ul class="outcome-list">
-        <li>對子: ${stats.patternCounts.double}<span class="pct"> (${formatPercent(stats.patternRates.double)})</span>${renderBar(stats.patternRates.double)}</li>
+        <li>對子: ${stats.patternCounts.double}<span class="pct"> (${formatPercent(stats.patternRates.double)})</span>${renderBar(stats.patternRates.double, "bar-neutral")}</li>
         <li class="sp">豹子: ${stats.patternCounts.triple}<span class="pct"> (${formatPercent(stats.patternRates.triple)})</span>${renderBar(stats.patternRates.triple)}</li>
-        <li>順子: ${stats.patternCounts.straight}<span class="pct"> (${formatPercent(stats.patternRates.straight)})</span>${renderBar(stats.patternRates.straight)}</li>
+        <li>順子: ${stats.patternCounts.straight}<span class="pct"> (${formatPercent(stats.patternRates.straight)})</span>${renderBar(stats.patternRates.straight, "bar-neutral")}</li>
       </ul>
     </section>
 
@@ -154,7 +176,7 @@ export function renderStatistics(container, stats) {
         <div><b>目前大小連續:</b> ${streakType} ${stats.streak.currentLength}</div>
         <div><b>最長大連:</b> ${stats.streak.longestBig}</div>
         <div><b>最長小連:</b> ${stats.streak.longestSmall}</div>
-        <div><b>最近10局:</b> ${trendText}</div>
+        <div class="trend-row"><b>最近10局:</b> ${trendText}</div>
       </div>
     </section>
   `;
