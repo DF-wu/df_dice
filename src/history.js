@@ -10,6 +10,14 @@ function toValidRoll(value) {
   return number;
 }
 
+function toValidStamp(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    return null;
+  }
+  return number;
+}
+
 function assertValidRoll(value) {
   const roll = toValidRoll(value);
   if (roll === null) {
@@ -18,8 +26,19 @@ function assertValidRoll(value) {
   return roll;
 }
 
-function cloneRound(round) {
-  return { rolls: [...round.rolls] };
+function withStamps(round, stamps) {
+  if (stamps.some((stamp) => stamp !== null)) {
+    return { ...round, at: stamps };
+  }
+  return round;
+}
+
+export function cloneRound(round) {
+  const clone = { rolls: [...round.rolls] };
+  if (round.at) {
+    clone.at = [...round.at];
+  }
+  return clone;
 }
 
 function toLegacyRolls(round) {
@@ -45,28 +64,34 @@ export function normalizeRound(round) {
     return null;
   }
 
-  let rolls = [];
+  const rolls = [];
+  const stamps = [];
+  const rawStamps = Array.isArray(round.at) ? round.at : [];
 
   if (Array.isArray(round.rolls)) {
-    for (const value of round.rolls) {
-      const roll = toValidRoll(value);
+    for (let index = 0; index < round.rolls.length; index += 1) {
+      const roll = toValidRoll(round.rolls[index]);
       if (roll === null) {
         continue;
       }
       rolls.push(roll);
+      stamps.push(toValidStamp(rawStamps[index]));
       if (rolls.length === ROUND_SIZE) {
         break;
       }
     }
   } else {
-    rolls = toLegacyRolls(round);
+    rolls.push(...toLegacyRolls(round));
+    for (let index = 0; index < rolls.length; index += 1) {
+      stamps.push(toValidStamp(rawStamps[index]));
+    }
   }
 
   if (rolls.length === 0) {
     return null;
   }
 
-  return { rolls };
+  return withStamps({ rolls }, stamps);
 }
 
 export function normalizeHistory(rawHistory) {
@@ -89,34 +114,53 @@ export function isRoundComplete(round) {
   return Array.isArray(round?.rolls) && round.rolls.length === ROUND_SIZE;
 }
 
-export function addRoll(history, value) {
+function pushStamp(round, stamp) {
+  if (stamp === null && !round.at) {
+    return;
+  }
+
+  const stamps = round.at ? [...round.at] : [];
+  while (stamps.length < round.rolls.length - 1) {
+    stamps.push(null);
+  }
+  stamps.push(stamp);
+  round.at = stamps;
+}
+
+export function addRoll(history, value, timestamp = null) {
   const roll = assertValidRoll(value);
-  const normalized = normalizeHistory(history);
-  const updated = normalized.map(cloneRound);
+  const stamp = toValidStamp(timestamp);
+  const updated = normalizeHistory(history).map(cloneRound);
   const latestRound = updated[updated.length - 1];
 
   if (!latestRound || isRoundComplete(latestRound)) {
-    updated.push({ rolls: [roll] });
+    const created = { rolls: [roll] };
+    pushStamp(created, stamp);
+    updated.push(created);
     return updated;
   }
 
   latestRound.rolls.push(roll);
+  pushStamp(latestRound, stamp);
   return updated;
 }
 
 export function undoLastRoll(history) {
-  const normalized = normalizeHistory(history);
-  if (normalized.length === 0) {
+  const updated = normalizeHistory(history).map(cloneRound);
+  if (updated.length === 0) {
     return [];
   }
 
-  const updated = normalized.map(cloneRound);
   const latestRound = updated[updated.length - 1];
 
   if (latestRound.rolls.length <= 1) {
     updated.pop();
-  } else {
-    latestRound.rolls = latestRound.rolls.slice(0, -1);
+    return updated;
+  }
+
+  latestRound.rolls = latestRound.rolls.slice(0, -1);
+  if (latestRound.at) {
+    latestRound.at = latestRound.at.slice(0, -1);
   }
 
   return updated;
@@ -128,4 +172,18 @@ export function getCompletedRounds(history) {
 
 export function getAllRolls(history) {
   return normalizeHistory(history).flatMap((round) => round.rolls);
+}
+
+export function getStampsOf(round) {
+  return round.at ?? [];
+}
+
+export function getRoundStart(round) {
+  const stamps = getStampsOf(round).filter((stamp) => stamp !== null);
+  return stamps.length === 0 ? null : stamps[0];
+}
+
+export function getRoundEnd(round) {
+  const stamps = getStampsOf(round).filter((stamp) => stamp !== null);
+  return stamps.length === 0 ? null : stamps[stamps.length - 1];
 }
