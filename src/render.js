@@ -279,6 +279,8 @@ function buildPatterns(stats) {
     section("型態統計", `<ul class="meter-list">${patternRows}</ul>`, "細線為理論機率位置"),
     section("圍骰分佈", `<ul class="sum-grid">${tripleCards}</ul>`, "各點數開出豹子的次數"),
     section("特殊型態遺漏", gapCards),
+    section("點數出現次數", `<table class="data-table"><thead><tr><th>點數</th><th>0 顆</th><th>1 顆</th><th>2 顆</th><th>3 顆</th><th>至少兩顆</th></tr></thead><tbody>${stats.occurrencesByFace.map((counts, index) => `<tr><td>${index + 1}</td>${counts.map((count) => `<td>${count}</td>`).join("")}<td>${stats.doubleByFace[index]}</td></tr>`).join("")}</tbody></table>`, "僅統計完成局；至少兩顆包含豹子"),
+    section("熱門組合（不分順序）", `<ul class="sum-grid">${stats.topPatterns.map((entry) => `<li class="sum-pill"><b>${entry.pattern}</b><span>${entry.count} 次</span></li>`).join("")}</ul>`, `三顆相異共 ${stats.distinctCount} 局`),
   ].join("");
 }
 
@@ -437,8 +439,8 @@ export function renderHistory(container, history, options = {}) {
   }
 
   const visible = records.filter((record) => matchesFilter(record, activeFilter));
-  const rows = [...visible]
-    .reverse()
+  const displayRecords = [...visible].reverse();
+  const rows = displayRecords
     .map((record) => {
       const previous = records[record.index - 2];
       const previousSum = previous?.complete ? previous.analysis.sum : null;
@@ -456,6 +458,16 @@ export function renderHistory(container, history, options = {}) {
     ${buildFilterBar(records, activeFilter)}
     ${body}
   `;
+  container.querySelectorAll(".history-list > li").forEach((row, index) => {
+    const record = displayRecords[index];
+    const button = container.ownerDocument.createElement("button");
+    button.type = "button";
+    button.className = "chip";
+    button.dataset.deleteRound = String(record.index - 1);
+    button.textContent = "刪除";
+    button.setAttribute("aria-label", `刪除第 ${record.index} 局`);
+    row.append(button);
+  });
 }
 
 export function renderThemePicker(activeTheme) {

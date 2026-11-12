@@ -23,7 +23,7 @@ export function toJsonText(history) {
   return JSON.stringify(history, null, 2);
 }
 
-export function toCsvText(stats) {
+export function toCsvText(stats, sessionName) {
   const rows = stats.roundRecords.map((record) => {
     const [first = "", second = "", third = ""] = record.rolls;
 
@@ -47,6 +47,11 @@ export function toCsvText(stats) {
     ].join(",");
   });
 
+  if (sessionName !== undefined) {
+    const safeName = /^\s*[=+\-@]|^[\t\r\n]/.test(sessionName) ? "'" + sessionName : sessionName;
+    const quoted = `"${safeName.replace(/"/g, '""')}"`;
+    return ["session," + CSV_HEADER.join(","), ...rows.map((row) => quoted + "," + row)].join("\n");
+  }
   return [CSV_HEADER.join(","), ...rows].join("\n");
 }
 

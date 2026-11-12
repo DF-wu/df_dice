@@ -251,6 +251,10 @@ export function calculateStatistics(history) {
   const sumCounts = buildSumMap();
   const bucketCounts = buildBucketMap();
   const tripleCounts = zeros(FACE_COUNT);
+  const doubleByFace = zeros(FACE_COUNT);
+  const occurrencesByFace = Array.from({ length: FACE_COUNT }, () => zeros(4));
+  const multisetCounts = {};
+  let distinctCount = 0;
   const pairMatrix = Array.from({ length: FACE_COUNT }, () => zeros(FACE_COUNT));
   const outcomes = [];
   const parities = [];
@@ -259,6 +263,15 @@ export function calculateStatistics(history) {
 
   completedRounds.forEach((round, index) => {
     const analysis = analyzedRounds[index];
+    const counts = zeros(FACE_COUNT);
+    for (const face of round.rolls) counts[face - 1] += 1;
+    counts.forEach((count, face) => {
+      occurrencesByFace[face][count] += 1;
+      if (count >= 2) doubleByFace[face] += 1;
+    });
+    const key = [...round.rolls].sort((a, b) => a - b).join("-");
+    multisetCounts[key] = (multisetCounts[key] ?? 0) + 1;
+    if (new Set(round.rolls).size === 3) distinctCount += 1;
     sumCounts[analysis.sum] += 1;
     bucketCounts[bucketOf(analysis.sum)] += 1;
     parityCounts[analysis.parity] += 1;
@@ -372,6 +385,12 @@ export function calculateStatistics(history) {
     positionCounts,
     pairMatrix,
     tripleCounts,
+    doubleByFace,
+    occurrencesByFace,
+    multisetCounts,
+    distinctCount,
+    topPatterns: Object.entries(multisetCounts).map(([pattern, count]) => ({ pattern, count }))
+      .sort((a, b) => b.count - a.count || a.pattern.localeCompare(b.pattern)).slice(0, 10),
     outcomeCounts,
     outcomeRates,
     parityCounts,

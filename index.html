@@ -1080,6 +1080,10 @@
         .meter-meta { grid-column: 1 / span 2; }
         .control.triple button { flex: 1 1 100%; }
       }
+      .side-panel input, .side-panel select, .side-panel textarea {
+        display: block; width: 100%; box-sizing: border-box; margin: 6px 0 12px;
+        padding: 10px; color: var(--text); background: var(--card); border: 1px solid var(--border-hi); border-radius: var(--r-sm);
+      }
     </style>
   </head>
   <body>
@@ -1093,6 +1097,18 @@
       </header>
 
       <div class="side-column">
+        <section class="side-panel">
+          <h3 class="stat-heading">對局管理</h3>
+          <label for="sessionSelect">目前對局</label>
+          <select id="sessionSelect"></select>
+          <label for="sessionName">對局名稱</label>
+          <textarea id="sessionName" rows="2"></textarea>
+          <div class="control triple">
+            <button id="btnCreateSession" type="button">建立</button>
+            <button id="btnRenameSession" type="button">重新命名</button>
+            <button id="btnDeleteSession" type="button">刪除對局</button>
+          </div>
+        </section>
         <section class="side-panel">
           <h3 class="stat-heading">輸入骰點</h3>
           <div class="dicePanel"></div>
@@ -1108,13 +1124,15 @@
         <section class="side-panel quick-stats"></section>
 
         <section class="side-panel">
-          <h3 class="stat-heading">資料匯出</h3>
+          <h3 class="stat-heading">資料備份</h3>
+          <label for="importJson">匯入 JSON（保留現有對局）</label>
+          <input id="importJson" type="file" accept=".json,application/json" />
           <div class="control triple">
             <button id="btnExportJson" type="button">JSON</button>
             <button id="btnExportCsv" type="button">CSV</button>
             <button id="btnCopySummary" type="button">複製摘要</button>
           </div>
-          <p class="hint" id="exportNote">紀錄自動保存於瀏覽器，可匯出備份或分享摘要。</p>
+          <p class="hint" id="exportNote" role="status">紀錄自動保存於瀏覽器，可匯出備份或分享摘要。</p>
         </section>
       </div>
 

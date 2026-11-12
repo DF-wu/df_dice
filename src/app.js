@@ -1,3 +1,4 @@
+import { emptyState, loadSessions, mergeBackup, newSession, SESSION_STORAGE_KEY } from "./sessions.js";
 import { downloadText, toCsvText, toJsonText, toSummaryText } from "./export.js";
 import { addRoll, DIE_MAX, DIE_MIN, normalizeHistory, undoLastRoll } from "./history.js";
 import {
@@ -33,10 +34,6 @@ function readJson(storage, key) {
   } catch {
     return null;
   }
-}
-
-function parseStoredHistory(storage, key) {
-  return normalizeHistory(readJson(storage, key));
 }
 
 function parseStoredUi(storage, key) {
@@ -131,7 +128,104 @@ export function createDiceApp({
   const exportNote = document.getElementById("exportNote");
   const themeBar = document.getElementById("themeBar");
 
-  let history = parseStoredHistory(storage, storageKey);
+  let state;
+  let savedCanonical = null;
+  let loadFailed = false;
+  try {
+    state = loadSessions(storage, storageKey);
+    savedCanonical = storage?.getItem(SESSION_STORAGE_KEY) ?? null;
+  } catch {
+    state = emptyState();
+    loadFailed = true;
+    note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。");
+  }
+  let history = activeSession().history;
+  const sessionSelect = document.getElementById("sessionSelect");
+  const sessionName = document.getElementById("sessionName");
+  const importInput = document.getElementById("importJson");
+
+  function activeSession() {
+    return state.sessions.find((session) => session.id === state.activeSessionId);
+  }
+
+  function save(next) {
+    if (loadFailed) { note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。"); return false; }
+    try {
+      if (storage && storage.getItem(SESSION_STORAGE_KEY) !== savedCanonical) {
+        note("資料已在其他分頁變更，請重新載入後再操作。");
+        return false;
+      }
+      const serialized = JSON.stringify(next);
+      storage?.setItem(SESSION_STORAGE_KEY, serialized);
+      savedCanonical = serialized;
+    } catch {
+      note("儲存失敗，原有資料未變更");
+      return false;
+    }
+    state = next;
+    history = activeSession().history;
+    renderAll();
+    try {
+      if (history.length === 0) removeKey(storage, storageKey);
+      else writeJson(storage, storageKey, history);
+    } catch {
+      note("主備份已儲存，舊版相容副本更新失敗");
+    }
+    return true;
+  }
+
+  function saveHistory(nextHistory) {
+    save({ ...state, sessions: state.sessions.map((session) => session.id === state.activeSessionId ? { ...session, history: nextHistory } : session) });
+  }
+
+  function renderSessions() {
+    if (!sessionSelect || !sessionName) return;
+    sessionSelect.replaceChildren();
+    for (const session of state.sessions) {
+      const option = document.createElement("option");
+      option.value = session.id;
+      option.textContent = session.name;
+      option.selected = session.id === state.activeSessionId;
+      sessionSelect.append(option);
+    }
+    sessionName.value = activeSession().name;
+  }
+
+  function createSession() {
+    const name = sessionName.value.trim();
+    if (!name) return note("請輸入對局名稱");
+    const session = newSession(name);
+    save({ ...state, sessions: [...state.sessions, session], activeSessionId: session.id });
+  }
+
+  function renameSession() {
+    const name = sessionName.value;
+    if (!name.trim()) return note("請輸入對局名稱");
+    save({ ...state, sessions: state.sessions.map((session) => session.id === state.activeSessionId ? { ...session, name } : session) });
+  }
+
+  function deleteSession() {
+    if (!document.defaultView.confirm("確定刪除這個對局及全部紀錄？")) return;
+    const sessions = state.sessions.filter((session) => session.id !== state.activeSessionId);
+    save(sessions.length === 0 ? emptyState() : { ...state, sessions, activeSessionId: sessions[0].id });
+  }
+
+  function importJson() {
+    const file = importInput.files[0];
+    if (!file) return;
+    const reader = new document.defaultView.FileReader();
+    reader.onload = () => {
+      try {
+        const next = mergeBackup(state, JSON.parse(reader.result));
+        if (save(next)) note("匯入完成，原有對局與未完成紀錄均已保留");
+      } catch {
+        note("匯入失敗，請檢查 JSON 備份格式；原有資料未變更");
+      }
+      importInput.value = "";
+    };
+    reader.onerror = () => { note("匯入失敗，無法讀取檔案"); importInput.value = ""; };
+    reader.readAsText(file);
+  }
   let ui = parseStoredUi(storage, uiStorageKey);
   let stats = calculateStatistics(history);
 
@@ -145,6 +239,7 @@ export function createDiceApp({
   }
 
   function renderAll() {
+    renderSessions();
     stats = calculateStatistics(history);
     renderStatistics(statsDiv, stats, { activeTab: ui.activeTab });
     renderHistory(historiesDiv, history, { filter: ui.filter, stats });
@@ -155,29 +250,19 @@ export function createDiceApp({
   }
 
   function note(message) {
-    setHtml(exportNote, message);
+    if (exportNote) exportNote.textContent = message;
   }
 
   function add(value) {
-    history = addRoll(history, value, now());
-    writeJson(storage, storageKey, history);
-    renderAll();
+    saveHistory(addRoll(history, value, now()));
   }
 
   function undo() {
-    history = undoLastRoll(history);
-    if (history.length === 0) {
-      removeKey(storage, storageKey);
-    } else {
-      writeJson(storage, storageKey, history);
-    }
-    renderAll();
+    saveHistory(undoLastRoll(history));
   }
 
   function reset() {
-    history = [];
-    removeKey(storage, storageKey);
-    renderAll();
+    saveHistory([]);
   }
 
   function setTab(tab) {
@@ -199,16 +284,19 @@ export function createDiceApp({
   }
 
   function exportJson() {
-    downloader(document, "dice-history.json", toJsonText(history), "application/json");
+    if (loadFailed) return note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。");
+    downloader(document, "dice-history.json", toJsonText(state), "application/json");
     note(`已匯出 ${history.length} 局 JSON`);
   }
 
   function exportCsv() {
-    downloader(document, "dice-history.csv", toCsvText(stats), "text/csv");
+    if (loadFailed) return note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。");
+    downloader(document, "dice-history.csv", toCsvText(stats, activeSession().name), "text/csv");
     note(`已匯出 ${stats.roundRecords.length} 列 CSV`);
   }
 
   function copySummary() {
+    if (loadFailed) return note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。");
     const text = toSummaryText(stats);
     if (clipboard) {
       clipboard.writeText(text);
@@ -227,6 +315,11 @@ export function createDiceApp({
   }
 
   function onHistoryClick(event) {
+    const deletion = event.target.closest("[data-delete-round]");
+    if (deletion) {
+      saveHistory(history.filter((_round, index) => index !== Number(deletion.dataset.deleteRound)));
+      return;
+    }
     const trigger = event.target.closest("[data-filter]");
     if (trigger) {
       setFilter(trigger.dataset.filter);
@@ -241,7 +334,7 @@ export function createDiceApp({
   }
 
   function onKeyDown(event) {
-    if (event.ctrlKey || event.metaKey || event.altKey) {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.target.closest?.("input, select, textarea, [contenteditable]")) {
       return;
     }
 
@@ -269,6 +362,14 @@ export function createDiceApp({
   bindClick(document.getElementById("btnExportJson"), exportJson);
   bindClick(document.getElementById("btnExportCsv"), exportCsv);
   bindClick(document.getElementById("btnCopySummary"), copySummary);
+
+  bindClick(document.getElementById("btnCreateSession"), createSession);
+  bindClick(document.getElementById("btnRenameSession"), renameSession);
+  bindClick(document.getElementById("btnDeleteSession"), deleteSession);
+  sessionSelect?.addEventListener("change", () => {
+    if (!save({ ...state, activeSessionId: sessionSelect.value })) renderSessions();
+  });
+  importInput?.addEventListener("change", importJson);
 
   applyTheme();
   renderAll();
