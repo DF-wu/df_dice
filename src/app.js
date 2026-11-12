@@ -284,16 +284,19 @@ export function createDiceApp({
   }
 
   function exportJson() {
+    if (loadFailed) return note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。");
     downloader(document, "dice-history.json", toJsonText(state), "application/json");
     note(`已匯出 ${history.length} 局 JSON`);
   }
 
   function exportCsv() {
+    if (loadFailed) return note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。");
     downloader(document, "dice-history.csv", toCsvText(stats, activeSession().name), "text/csv");
     note(`已匯出 ${stats.roundRecords.length} 列 CSV`);
   }
 
   function copySummary() {
+    if (loadFailed) return note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。");
     const text = toSummaryText(stats);
     if (clipboard) {
       clipboard.writeText(text);

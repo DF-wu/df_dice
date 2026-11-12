@@ -194,6 +194,30 @@ it("retains the source and backup when migration save fails", () => {
   expect(values.get("dice_history_backup")).toBe(source);
 });
 
+it.each([false, true])("blocks placeholder exports during recovery, malformed source=%j", (malformed) => {
+  const source = JSON.stringify(malformed ? [{ unrelated: true }] : [
+    { rolls: [1, 2, 3], at: [1000, 2000, 3000] }, { rolls: [4, 5], at: [4000, 5000] },
+  ]);
+  const values = new Map([["dice_history", source]]);
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem(key, value) {
+      if (key === "dice_sessions_v3") throw new Error("Storage full");
+      values.set(key, value);
+    },
+  };
+  const clipboard = { writeText: vi.fn() };
+  const { downloads } = mount({}, { storage, clipboard });
+  for (const selector of ["#btnExportJson", "#btnExportCsv", "#btnCopySummary"]) {
+    click(selector);
+    expect(downloads).toEqual([]);
+    expect(clipboard.writeText).not.toHaveBeenCalled();
+    expect(document.querySelector("#exportNote").textContent).toContain("讀取失敗");
+    expect(values.get("dice_history")).toBe(source);
+  }
+});
+
 it("migrates persisted PR2 state, retains its source, and preserves the active draft", () => {
   const raw = { version: 2, sessions: { s: { id: "s", name: "old", rounds: [] } }, currentSessionId: "s", draft: [4] };
   const source = JSON.stringify(raw);
