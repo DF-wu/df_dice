@@ -48,7 +48,8 @@ export function toCsvText(stats, sessionName) {
   });
 
   if (sessionName !== undefined) {
-    const quoted = `"${sessionName.replace(/"/g, '""')}"`;
+    const safeName = /^\s*[=+\-@]|^[\t\r\n]/.test(sessionName) ? "'" + sessionName : sessionName;
+    const quoted = `"${safeName.replace(/"/g, '""')}"`;
     return ["session," + CSV_HEADER.join(","), ...rows.map((row) => quoted + "," + row)].join("\n");
   }
   return [CSV_HEADER.join(","), ...rows].join("\n");

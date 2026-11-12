@@ -44,6 +44,7 @@ export function validateHistory(raw) {
     }
     return { rolls };
   });
+  requireValid(history.slice(0, -1).every((entry) => entry.rolls.length === 3));
   return normalizeHistory(history);
 }
 
@@ -82,7 +83,10 @@ export function parseBackup(raw) {
     const active = sessions.find((session) => session.id === activeSessionId);
     requireValid(active !== undefined);
     const draft = faces(raw.draft, 2);
-    if (draft.length > 0) active.history.push({ rolls: [...draft] });
+    if (draft.length > 0) {
+      requireValid(active.history.every((entry) => entry.rolls.length === 3));
+      active.history.push({ rolls: [...draft] });
+    }
   } else {
     requireValid(raw.version === undefined && typeof raw.name === "string" && Array.isArray(raw.rounds));
     const session = { ...newSession(raw.name), history: validateHistory(raw.rounds) };

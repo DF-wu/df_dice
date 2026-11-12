@@ -92,9 +92,11 @@ it("roundtrips its own backup, remaps colliding session IDs and retains both act
 
 it.each([
   [{ unrelated: true }], [{ rolls: [1, 8, 3] }], [{ rolls: [1, 2, 3, 4] }],
+  [{ rolls: [1] }, { rolls: [2] }], [{ rolls: [1] }, { rolls: [2, 3, 4] }],
   [{ rolls: [1], at: ["wrong"] }], { name: "bad", rounds: [{ dice: [1, 2] }] },
   { version: 2, sessions: { x: { id: "x", name: "bad", rounds: [{ dice: [1, 2, 9] }] } }, currentSessionId: "x", draft: [] },
   { version: 2, sessions: {}, currentSessionId: "missing", draft: [4] },
+  { version: 2, sessions: { x: { id: "x", name: "bad", rounds: [{ rolls: [1] }] } }, currentSessionId: "x", draft: [2] },
 ].map((bad) => ({ bad })))("rejects malformed backup before mutating destination: %j", async ({ bad }) => {
   const { app, data } = mount(); roll(6, 5);
   const before = JSON.stringify([...data]);
@@ -124,6 +126,7 @@ it("migrates PR2 backups and keeps imported IDs and names inert in real DOM", as
 });
 
 it("synchronizes rendering, per-die undo, filtering, session lifecycle, reset and reload", () => {
+  vi.spyOn(window, "confirm").mockReturnValue(true);
   const { app } = mount(); roll(1, 2, 3, 6, 6, 6, 2);
   for (let i = 0; i < 5; i++) click('[data-tab="patterns"]');
   expect(document.querySelectorAll(".history-list > li")).toHaveLength(3);
@@ -261,3 +264,58 @@ it("merges multiple sessions and maps imported active selection despite generate
   select("a-new-id");
   expect(app.getHistory()[0].rolls).toEqual([1]);
 });
+
+it("rejects a stale tab write without losing sessions saved by another tab", () => {
+  const first = mount();
+  roll(1);
+  const firstNote = document.querySelector("#exportNote");
+  mount({}, { storage: first.storage });
+  named("Other tab", "#btnCreateSession");
+  roll(6, 6, 6);
+  const stored = first.data.get("dice_sessions_v3");
+  first.app.add(2);
+  expect(first.data.get("dice_sessions_v3")).toBe(stored);
+  expect(JSON.parse(stored).sessions).toHaveLength(2);
+  expect(first.app.getHistory()[0].rolls).toEqual([1]);
+  expect(firstNote.textContent).toContain("重新載入");
+});
+
+it("restores the active selector after a failed session switch", () => {
+  const { app, storage } = mount();
+  roll(1);
+  const original = document.querySelector("#sessionSelect").value;
+  named("Second", "#btnCreateSession");
+  roll(6);
+  const second = document.querySelector("#sessionSelect").value;
+  vi.spyOn(storage, "setItem").mockImplementationOnce(() => { throw new Error("Quota exceeded"); });
+  select(original);
+  expect(document.querySelector("#sessionSelect").value).toBe(second);
+  expect(app.getHistory()[0].rolls).toEqual([6]);
+  roll(2);
+  expect(app.getHistory()[0].rolls).toEqual([6, 2]);
+  select(original);
+  expect(app.getHistory()[0].rolls).toEqual([1]);
+});
+
+it("requires confirmation before deleting a session and its history", () => {
+  const { app, data } = mount();
+  roll(1, 2, 3);
+  const stored = data.get("dice_sessions_v3");
+  vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+  click("#btnDeleteSession");
+  expect(data.get("dice_sessions_v3")).toBe(stored);
+  expect(app.getHistory()[0].rolls).toEqual([1, 2, 3]);
+  click("#btnDeleteSession");
+  expect(app.getHistory()).toEqual([]);
+});
+
+it.each(["=1+1", "+1+1", "-1+1", "@SUM(1)", "\t=1+1", "\r=1+1", "\n=1+1", "   =1+1"])(
+  "exports imported formula-like session name as inert CSV text: %j", async (name) => {
+    const { downloads } = mount();
+    await importFile({ name, rounds: [{ dice: [1, 2, 3] }] });
+    click("#btnExportCsv");
+    expect(downloads.at(-1).text).toContain(`"'${name}",`);
+    click("#btnExportJson");
+    expect(JSON.parse(downloads.at(-1).text).sessions.at(-1).name).toBe(name);
+  },
+);

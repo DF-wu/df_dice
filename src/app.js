@@ -129,9 +129,11 @@ export function createDiceApp({
   const themeBar = document.getElementById("themeBar");
 
   let state;
+  let savedCanonical = null;
   let loadFailed = false;
   try {
     state = loadSessions(storage, storageKey);
+    savedCanonical = storage?.getItem(SESSION_STORAGE_KEY) ?? null;
   } catch {
     state = emptyState();
     loadFailed = true;
@@ -149,7 +151,13 @@ export function createDiceApp({
   function save(next) {
     if (loadFailed) { note("讀取失敗，原始資料已保留；請先備份瀏覽器儲存資料再繼續。"); return false; }
     try {
-      writeJson(storage, SESSION_STORAGE_KEY, next);
+      if (storage && storage.getItem(SESSION_STORAGE_KEY) !== savedCanonical) {
+        note("資料已在其他分頁變更，請重新載入後再操作。");
+        return false;
+      }
+      const serialized = JSON.stringify(next);
+      storage?.setItem(SESSION_STORAGE_KEY, serialized);
+      savedCanonical = serialized;
     } catch {
       note("儲存失敗，原有資料未變更");
       return false;
@@ -197,6 +205,7 @@ export function createDiceApp({
   }
 
   function deleteSession() {
+    if (!document.defaultView.confirm("確定刪除這個對局及全部紀錄？")) return;
     const sessions = state.sessions.filter((session) => session.id !== state.activeSessionId);
     save(sessions.length === 0 ? emptyState() : { ...state, sessions, activeSessionId: sessions[0].id });
   }
@@ -354,7 +363,9 @@ export function createDiceApp({
   bindClick(document.getElementById("btnCreateSession"), createSession);
   bindClick(document.getElementById("btnRenameSession"), renameSession);
   bindClick(document.getElementById("btnDeleteSession"), deleteSession);
-  sessionSelect?.addEventListener("change", () => save({ ...state, activeSessionId: sessionSelect.value }));
+  sessionSelect?.addEventListener("change", () => {
+    if (!save({ ...state, activeSessionId: sessionSelect.value })) renderSessions();
+  });
   importInput?.addEventListener("change", importJson);
 
   applyTheme();
