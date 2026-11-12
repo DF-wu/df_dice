@@ -1,523 +1,342 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { startApp } from "../app.js";
-import { STORAGE_KEY, saveState } from "../storage.js";
-import { createAppDom, createMemoryStorage, StubElement } from "./stubs.js";
+import { createDiceApp, STORAGE_KEY, UI_STORAGE_KEY } from "../src/app.js";
+import { THEMES } from "../src/themes.js";
 
-describe("app", () => {
-  it("startApp throws when document is missing", () => {
-    assert.throws(() => startApp(), /missing document/);
+const mounted = [];
+
+function createMemoryStorage(initial = {}) {
+  const data = new Map(Object.entries(initial));
+
+  return {
+    getItem(key) {
+      return data.has(key) ? data.get(key) : null;
+    },
+    setItem(key, value) {
+      data.set(key, String(value));
+    },
+    removeItem(key) {
+      data.delete(key);
+    },
+    snapshot() {
+      return Object.fromEntries(data.entries());
+    },
+  };
+}
+
+function setupDom({ full = true } = {}) {
+  document.body.innerHTML = `
+    <div class="display">
+      <div class="hero-side">
+        ${full ? '<div class="status-chip" id="statusChip"></div><div id="themeBar"></div>' : ""}
+      </div>
+      <div class="dicePanel"></div>
+      <div class="control">
+        <button id="btnUndo">Undo Last</button>
+        <button id="btnReset">Reset</button>
+      </div>
+      ${full ? '<section class="current-round"></section><section class="quick-stats"></section>' : ""}
+      ${
+        full
+          ? `<div class="control triple">
+               <button id="btnExportJson">JSON</button>
+               <button id="btnExportCsv">CSV</button>
+               <button id="btnCopySummary">Copy</button>
+             </div>
+             <p id="exportNote"></p>`
+          : ""
+      }
+      <div class="resultPanel">
+        <div class="histories"></div>
+        <div class="probability"></div>
+      </div>
+    </div>
+  `;
+}
+
+function mount(options) {
+  const app = createDiceApp(options);
+  mounted.push(app);
+  return app;
+}
+
+function click(element) {
+  element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+}
+
+function press(key, init = {}) {
+  document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
+}
+
+function addRound(app, values) {
+  for (const value of values) {
+    app.add(value);
+  }
+}
+
+describe("createDiceApp", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    delete document.documentElement.dataset.theme;
   });
 
-  it("startApp throws when storage is missing", () => {
-    const { doc } = createAppDom();
-    assert.throws(() => startApp({ document: doc }), /missing storage/);
-  });
-
-  it("startApp throws when required DOM element is missing", () => {
-    const doc = createAppDom().doc;
-    doc._byId.delete("historyList");
-    const storage = createMemoryStorage();
-    assert.throws(() => startApp({ document: doc, storage }), /Missing element/);
-  });
-
-  it("default session lifecycle + add/undo/delete keeps stats correct", async () => {
-    const { doc, elements } = createAppDom();
-    const storage = createMemoryStorage();
-    const alerts = [];
-    globalThis.alert = (msg) => alerts.push(String(msg));
-
-    const downloads = [];
-    const downloadText = (filename, text, contentType) => {
-      downloads.push({ filename, text, contentType });
-    };
-
-    const app = startApp({
-      document: doc,
-      storage,
-      prompt: () => "ignored",
-      confirm: () => true,
-      clipboard: { writeText: async () => {} },
-      downloadText,
-      nowIso: () => "2026-01-01T00:00:00.000Z",
-      idGen: (() => {
-        let i = 0;
-        return () => `id-${i++}`;
-      })(),
-    });
-
-    // draft
-    app.addDie(1);
-    assert.ok(elements.draftMeta.textContent.includes("還差"));
-    app.addDie(2);
-    app.addDie(3);
-    assert.ok(elements.statsSummary.textContent.includes("共 1 回合"));
-    assert.ok(elements.historyList.innerHTML.includes("historyItem"));
-
-    // undo removes last round
-    await elements.btnUndo.click();
-    assert.equal(elements.statsSummary.textContent, "尚無紀錄");
-
-    // undo removes draft die
-    app.addDie(1);
-    app.undo();
-    assert.equal(app.getState().draft.length, 0);
-
-    // undo does nothing on empty
-    app.undo();
-
-    // deleteRound no-op
-    app.deleteRound("nope");
-    assert.equal(elements.statsSummary.textContent, "尚無紀錄");
-
-    // add one round then delete it
-    app.addDie(6);
-    app.addDie(6);
-    app.addDie(5);
-    const roundId = app.getState().sessions[app.getState().currentSessionId].rounds[0].id;
-    app.deleteRound(roundId);
-    assert.equal(elements.statsSummary.textContent, "尚無紀錄");
-
-    // export JSON + CSV (via click handlers)
-    elements.btnExportJson.click();
-    elements.btnExportCsv.click();
-    assert.equal(downloads.length, 2);
-    assert.ok(downloads[0].filename.endsWith(".json"));
-    assert.ok(downloads[1].filename.endsWith(".csv"));
-    assert.deepEqual(alerts, []);
-  });
-
-  it("copy summary falls back when clipboard is unavailable", async () => {
-    const { doc, elements } = createAppDom();
-    const storage = createMemoryStorage();
-    let lastAlert = "";
-    globalThis.alert = (msg) => {
-      lastAlert = String(msg);
-    };
-
-    const app = startApp({
-      document: doc,
-      storage,
-      prompt: () => "ignored",
-      confirm: () => true,
-      toastEl: new StubElement("div"),
-      downloadText: () => {},
-    });
-
-    app.addDie(1);
-    app.addDie(2);
-    app.addDie(3);
-
-    await elements.btnCopySummary.click();
-    assert.ok(lastAlert.includes("【"));
-  });
-
-  it("import handles invalid JSON, invalid shape, confirm cancel, and success", async () => {
-    const { doc, elements } = createAppDom();
-    const storage = createMemoryStorage();
-    const alerts = [];
-    globalThis.alert = (msg) => alerts.push(String(msg));
-
-    let confirmValue = true;
-    const confirm = () => confirmValue;
-
-    const app = startApp({
-      document: doc,
-      storage,
-      confirm,
-      prompt: () => "ignored",
-      toastEl: new StubElement("div"),
-      downloadText: () => {},
-      idGen: (() => {
-        let i = 0;
-        return () => `id-${i++}`;
-      })(),
-      nowIso: () => "2026-01-01T00:00:00.000Z",
-    });
-
-    // no file
-    elements.fileImport.files = undefined;
-    await elements.fileImport.dispatchEvent({ type: "change" });
-
-    // invalid JSON
-    elements.fileImport.files = [
-      {
-        text: async () => "not-json",
-      },
-    ];
-    await elements.fileImport.dispatchEvent({ type: "change" });
-    assert.ok(alerts.some((x) => x.includes("匯入失敗")));
-
-    // non-Error thrown
-    elements.fileImport.files = [
-      {
-        text: async () => {
-          throw "boom";
-        },
-      },
-    ];
-    await elements.fileImport.dispatchEvent({ type: "change" });
-    assert.ok(alerts.some((x) => x.includes("boom")));
-
-    // invalid shape
-    elements.fileImport.files = [
-      {
-        text: async () => JSON.stringify({ nope: true }),
-      },
-    ];
-    await elements.fileImport.dispatchEvent({ type: "change" });
-    assert.ok(alerts.some((x) => x.includes("檔案格式不正確")));
-
-    // confirm cancel
-    confirmValue = false;
-    elements.fileImport.files = [
-      {
-        text: async () =>
-          JSON.stringify({
-            version: 2,
-            sessions: {
-              a: {
-                id: "a",
-                name: "A",
-                createdAt: "t",
-                updatedAt: "t",
-                rounds: [],
-              },
-            },
-            currentSessionId: "a",
-            draft: [],
-            ui: { filter: "all" },
-          }),
-      },
-    ];
-    await elements.fileImport.dispatchEvent({ type: "change" });
-    assert.equal(Object.keys(app.getState().sessions).length, 1);
-
-    // success
-    confirmValue = true;
-    elements.fileImport.files = [
-      {
-        text: async () =>
-          JSON.stringify({
-            version: 2,
-            sessions: {
-              b: {
-                id: "b",
-                name: "B",
-                createdAt: "t",
-                updatedAt: "t",
-                rounds: [],
-              },
-            },
-            currentSessionId: "b",
-            draft: [],
-            ui: { filter: "all" },
-          }),
-      },
-    ];
-    await elements.fileImport.dispatchEvent({ type: "change" });
-    assert.equal(Object.keys(app.getState().sessions).length, 2);
-  });
-
-  it("hot dice distributions cover chi-square threshold branches", () => {
-    const baseRounds = [
-      [1, 2, 3],
-      [1, 2, 4],
-      [1, 2, 5],
-      [1, 3, 4],
-      [1, 3, 5],
-      [1, 4, 5],
-      [1, 2, 3],
-      [1, 4, 5],
-      [1, 2, 4],
-      [1, 3, 5],
-    ];
-
-    const variants = [
-      {
-        name: "normal",
-        rounds: baseRounds,
-        expect: "目前看起來正常",
-      },
-      {
-        name: "p05",
-        rounds: baseRounds.map((d, i) => (i === 9 ? [1, 3, 1] : d)),
-        expect: "可能偏骰",
-      },
-      {
-        name: "p01",
-        rounds: baseRounds.map((d, i) => {
-          if (i === 1) return [1, 2, 1];
-          if (i === 3) return [1, 3, 1];
-          return d;
-        }),
-        expect: "可疑",
-      },
-      {
-        name: "p001",
-        rounds: baseRounds.map((d, i) => {
-          if (i === 1) return [1, 2, 1];
-          if (i === 3) return [1, 3, 1];
-          if (i === 5) return [1, 1, 5];
-          if (i === 7) return [1, 1, 5];
-          return d;
-        }),
-        expect: "高度可疑",
-      },
-    ];
-
-    for (const v of variants) {
-      const { doc, elements } = createAppDom();
-      const storage = createMemoryStorage();
-      globalThis.alert = () => {};
-
-      const state = {
-        version: 2,
-        sessions: {
-          s: {
-            id: "s",
-            name: v.name,
-            createdAt: "t",
-            updatedAt: "t",
-            rounds: v.rounds.map((dice, idx) => ({
-              id: `r${idx}`,
-              at: "2026-01-01T00:00:00.000Z",
-              dice,
-            })),
-          },
-        },
-        currentSessionId: "s",
-        draft: [],
-        ui: { filter: "all" },
-      };
-      saveState(storage, state);
-
-      startApp({
-        document: doc,
-        storage,
-        confirm: () => true,
-        prompt: () => "ignored",
-        toastEl: new StubElement("div"),
-        downloadText: () => {},
-      });
-
-      assert.ok(
-        elements.chiSquare.textContent.includes(v.expect),
-        `${v.name} should include ${v.expect}`,
-      );
+  afterEach(() => {
+    while (mounted.length > 0) {
+      mounted.pop().destroy();
     }
   });
 
-  it("event handlers cover click fallbacks + keydown ignore", () => {
-    const { doc, elements } = createAppDom();
-    const storage = createMemoryStorage();
-    globalThis.alert = () => {};
+  it("validates required inputs", () => {
+    expect(() => createDiceApp()).toThrow("Document is required.");
 
-    startApp({
-      document: doc,
-      storage,
-      confirm: () => true,
-      prompt: () => "ignored",
-      toastEl: new StubElement("div"),
-      downloadText: () => {},
-    });
-
-    // dicePad click with no match
-    elements.dicePad.dispatchEvent({ type: "click", target: new StubElement("div") });
-
-    // dicePad click fallback path (no closest)
-    elements.dicePad.dispatchEvent({
-      type: "click",
-      target: {
-        getAttribute: (k) => (k === "data-face" ? "1" : null),
-      },
-    });
-    assert.ok(elements.draftDice.innerHTML.includes("dice1.png"));
-
-    // invalid face
-    elements.dicePad.dispatchEvent({
-      type: "click",
-      target: {
-        getAttribute: (k) => (k === "data-face" ? "9" : null),
-      },
-    });
-
-    // historyList click non-delete
-    elements.historyList.dispatchEvent({ type: "click", target: new StubElement("div") });
-    const btn = new StubElement("button");
-    btn.setAttribute("data-action", "noop");
-    elements.historyList.dispatchEvent({ type: "click", target: btn });
-
-    // keydown ignored when focusing input
-    doc.activeElement = { tagName: "INPUT" };
-    doc.dispatchEvent({ type: "keydown", key: "1", preventDefault() {} });
-
-    // keydown ignored when contentEditable
-    doc.activeElement = { tagName: "DIV", isContentEditable: true };
-    doc.dispatchEvent({ type: "keydown", key: "1", preventDefault() {} });
-
-    // keydown triggers add + undo + clear draft
-    doc.activeElement = null;
-    doc.dispatchEvent({ type: "keydown", key: "2", preventDefault() {} });
-    doc.dispatchEvent({ type: "keydown", key: "Backspace", preventDefault() {} });
-    doc.dispatchEvent({ type: "keydown", key: "Escape", preventDefault() {} });
-    doc.dispatchEvent({ type: "keydown", key: "x", preventDefault() {} });
+    document.body.innerHTML = `<div class="dicePanel"></div>`;
+    expect(() => createDiceApp({ document, storage: createMemoryStorage() })).toThrow(
+      "Required UI elements are missing.",
+    );
   });
 
-  it("session controls + branchy paths", async () => {
-    const { doc, elements } = createAppDom();
-    const storage = createMemoryStorage();
-    globalThis.alert = () => {};
-
-    // preload invalid currentSessionId to hit ensureSessionExists() fallback
-    saveState(storage, {
-      version: 2,
-      sessions: {
-        s1: {
-          id: "s1",
-          name: "S1",
-          createdAt: "t",
-          updatedAt: "t",
-          rounds: [],
-        },
-      },
-      currentSessionId: "missing",
-      draft: [1, 2, 3],
-      ui: { filter: "nope" },
+  it("loads legacy data and renders initial state", () => {
+    setupDom();
+    const storage = createMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify([{ first: 4, second: 4, third: 4, stage: 3 }]),
     });
 
-    const promptValues = [null, "   ", "新局", null, "  ", "改名"]; // new session x3, rename x3
-    const prompt = () => promptValues.shift();
-    const confirmValues = [false, true, false, true]; // delete, delete, reset, reset
-    const confirm = () => confirmValues.shift();
-    let copied = "";
+    const app = mount({ document, storage });
 
-    const app = startApp({
-      document: doc,
-      storage,
-      prompt,
-      confirm,
-      clipboard: {
-        writeText: async (t) => {
-          copied = t;
-        },
-      },
-      toastEl: new StubElement("div"),
-      downloadText: () => {},
-      nowIso: () => "2026-01-01T00:00:00.000Z",
-      idGen: (() => {
-        let i = 0;
-        return () => `id-${i++}`;
-      })(),
-    });
-
-    // new session: null / empty / ok
-    await elements.btnNewSession.click();
-    await elements.btnNewSession.click();
-    await elements.btnNewSession.click();
-    assert.equal(Object.keys(loadStateSnapshot(storage).sessions).length, 2);
-
-    // rename: null / empty / ok
-    await elements.btnRenameSession.click();
-    await elements.btnRenameSession.click();
-    await elements.btnRenameSession.click();
-
-    // switch session
-    const snap = loadStateSnapshot(storage);
-    const ids = Object.keys(snap.sessions);
-    elements.sessionSelect.value = ids[1];
-    await elements.sessionSelect.dispatchEvent({ type: "change" });
-
-    // clear draft (click first dice)
-    await elements.dicePad.dispatchEvent({
-      type: "click",
-      target: elements.dicePad.children[0],
-    });
-    await elements.btnClearDraft.click();
-
-    // reset session: confirm false then true
-    await elements.btnResetSession.click();
-    await elements.btnResetSession.click();
-
-    // delete session: confirm false then true
-    await elements.btnDeleteSession.click();
-    await elements.btnDeleteSession.click();
-
-    // filter
-    elements.filterSelect.value = "big";
-    await elements.filterSelect.dispatchEvent({ type: "change" });
-
-    // copy summary success
-    await elements.btnCopySummary.click();
-    assert.ok(copied.includes("【"));
-
-    // history click branches (delete missing id)
-    const btn = new StubElement("button");
-    btn.setAttribute("data-action", "delete");
-    await elements.historyList.dispatchEvent({ type: "click", target: btn });
-
-    // history delete via event handler (valid id)
-    app.addDie(6);
-    app.addDie(6);
-    app.addDie(5);
-    const roundId = app.getState().sessions[app.getState().currentSessionId].rounds[0].id;
-    const del = new StubElement("button");
-    del.setAttribute("data-action", "delete");
-    del.setAttribute("data-round-id", roundId);
-    await elements.historyList.dispatchEvent({ type: "click", target: del });
+    expect(app.getHistory()).toEqual([{ rolls: [4, 4, 4] }]);
+    expect(document.querySelector(".histories").textContent).toContain("豹子");
+    expect(document.querySelector("#btnUndo").disabled).toBe(false);
+    expect(document.querySelectorAll(".dice")).toHaveLength(6);
+    expect(document.getElementById("statusChip").textContent).toContain("1 局完成");
+    expect(document.querySelector(".current-round").textContent).toContain("開始新的一局");
+    expect(document.querySelector(".quick-stats").textContent).toContain("即時快覽");
   });
 
-  it("showToast unref false branch when setTimeout returns a number", () => {
-    const { doc, elements } = createAppDom();
-    const storage = createMemoryStorage();
-    globalThis.alert = () => {};
+  it("handles invalid storage JSON", () => {
+    setupDom();
+    const storage = createMemoryStorage({ [STORAGE_KEY]: "{", [UI_STORAGE_KEY]: "{" });
+    const app = mount({ document, storage });
 
-    const oldSet = globalThis.setTimeout;
-    const oldClear = globalThis.clearTimeout;
-    globalThis.setTimeout = () => 1;
-    globalThis.clearTimeout = () => {};
-
-    startApp({
-      document: doc,
-      storage,
-      confirm: () => true,
-      prompt: () => "ignored",
-      downloadText: () => {},
-    });
-    elements.btnExportJson.click();
-    elements.btnExportCsv.click();
-
-    globalThis.setTimeout = oldSet;
-    globalThis.clearTimeout = oldClear;
+    expect(app.getHistory()).toEqual([]);
+    expect(app.getUi()).toEqual({ activeTab: "overview", filter: "all", theme: "casino" });
+    expect(document.querySelector(".histories").textContent).toContain("尚無紀錄");
+    expect(document.querySelector("#btnUndo").disabled).toBe(true);
   });
 
-  it("defaultDownloadText + structuredCloneSafe branches", () => {
-    const { doc, elements } = createAppDom();
+  it("adds rolls with timestamps, undoes and resets", () => {
+    setupDom();
     const storage = createMemoryStorage();
-    globalThis.document = doc;
-    globalThis.alert = () => {};
+    let clock = 1000;
+    mount({ document, storage, now: () => (clock += 1000) });
 
-    // cover default download (no injected downloadText)
-    const app = startApp({
-      document: doc,
-      storage,
-      confirm: () => true,
-      prompt: () => "ignored",
-      toastEl: new StubElement("div"),
+    click(document.querySelector('.dice[data-value="1"]'));
+    click(document.querySelector('.dice[data-value="2"]'));
+    click(document.querySelector('.dice[data-value="3"]'));
+
+    let persisted = JSON.parse(storage.snapshot()[STORAGE_KEY]);
+    expect(persisted).toEqual([{ rolls: [1, 2, 3], at: [2000, 3000, 4000] }]);
+    expect(document.querySelector(".histories").textContent).toContain("小");
+
+    click(document.getElementById("btnUndo"));
+    persisted = JSON.parse(storage.snapshot()[STORAGE_KEY]);
+    expect(persisted).toEqual([{ rolls: [1, 2], at: [2000, 3000] }]);
+    expect(document.querySelector(".histories").textContent).toContain("進行中");
+
+    click(document.getElementById("btnUndo"));
+    click(document.getElementById("btnUndo"));
+    expect(storage.snapshot()[STORAGE_KEY]).toBeUndefined();
+    expect(document.querySelector(".histories").textContent).toContain("尚無紀錄");
+    expect(document.getElementById("btnUndo").disabled).toBe(true);
+
+    click(document.querySelector('.dice[data-value="6"]'));
+    click(document.getElementById("btnReset"));
+    expect(storage.snapshot()[STORAGE_KEY]).toBeUndefined();
+    expect(document.querySelector(".histories").textContent).toContain("尚無紀錄");
+  });
+
+  it("supports keyboard shortcuts", () => {
+    setupDom();
+    const app = mount({ document, storage: null, now: () => null });
+
+    press("4");
+    press("5");
+    expect(app.getHistory()).toEqual([{ rolls: [4, 5] }]);
+
+    press("Backspace");
+    expect(app.getHistory()).toEqual([{ rolls: [4] }]);
+
+    press("9");
+    press("a");
+    press("2", { ctrlKey: true });
+    press("2", { metaKey: true });
+    press("2", { altKey: true });
+    expect(app.getHistory()).toEqual([{ rolls: [4] }]);
+  });
+
+  it("switches tabs and persists the choice", () => {
+    setupDom();
+    const storage = createMemoryStorage();
+    const app = mount({ document, storage });
+    addRound(app, [1, 2, 3]);
+
+    click(document.querySelector('[data-tab="faces"]'));
+    expect(app.getUi().activeTab).toBe("faces");
+    expect(document.querySelector(".probability").textContent).toContain("公平性檢定");
+    expect(JSON.parse(storage.snapshot()[UI_STORAGE_KEY]).activeTab).toBe("faces");
+
+    click(document.querySelector(".stats-grid"));
+    expect(app.getUi().activeTab).toBe("faces");
+  });
+
+  it("switches history filters and persists the choice", () => {
+    setupDom();
+    const storage = createMemoryStorage();
+    const app = mount({ document, storage });
+    addRound(app, [1, 1, 1]);
+    addRound(app, [6, 6, 5]);
+
+    click(document.querySelector('[data-filter="triple"]'));
+    expect(app.getUi().filter).toBe("triple");
+    expect(document.querySelector(".histories").textContent).toContain("1 / 2 局");
+
+    click(document.querySelector(".history-list"));
+    expect(app.getUi().filter).toBe("triple");
+  });
+
+  it("restores persisted ui preferences", () => {
+    setupDom();
+    const storage = createMemoryStorage({
+      [STORAGE_KEY]: JSON.stringify([{ rolls: [1, 2, 3] }]),
+      [UI_STORAGE_KEY]: JSON.stringify({ activeTab: "trend", filter: "small", theme: "neon" }),
     });
-    elements.btnExportJson.click();
 
-    // cover structuredCloneSafe JSON fallback
-    const old = globalThis.structuredClone;
-    globalThis.structuredClone = undefined;
-    const st = app.getState();
-    assert.ok(st.version === 2);
-    globalThis.structuredClone = old;
+    const app = mount({ document, storage });
+
+    expect(app.getUi()).toEqual({ activeTab: "trend", filter: "small", theme: "neon" });
+    expect(document.documentElement.dataset.theme).toBe("neon");
+    expect(document.querySelector('[data-theme-key="neon"]').className).toContain("is-active");
+  });
+
+  it("ignores malformed ui preferences", () => {
+    setupDom();
+    const storage = createMemoryStorage({
+      [UI_STORAGE_KEY]: JSON.stringify({ activeTab: "nope", filter: "nope", theme: "nope" }),
+    });
+
+    expect(mount({ document, storage }).getUi()).toEqual({
+      activeTab: "overview",
+      filter: "all",
+      theme: "casino",
+    });
+  });
+
+  it("treats a null stored ui payload as defaults", () => {
+    setupDom();
+    const storage = createMemoryStorage({ [UI_STORAGE_KEY]: "null" });
+    expect(mount({ document, storage }).getUi().theme).toBe("casino");
+  });
+
+  it("switches between every ui style", () => {
+    setupDom();
+    const storage = createMemoryStorage();
+    const app = mount({ document, storage });
+
+    expect(document.querySelectorAll("[data-theme-key]")).toHaveLength(THEMES.length);
+
+    for (const theme of THEMES) {
+      click(document.querySelector(`[data-theme-key="${theme.key}"]`));
+      expect(app.getUi().theme).toBe(theme.key);
+      expect(document.documentElement.dataset.theme).toBe(theme.key);
+      expect(JSON.parse(storage.snapshot()[UI_STORAGE_KEY]).theme).toBe(theme.key);
+    }
+
+    click(document.getElementById("themeBar"));
+    expect(app.getUi().theme).toBe(THEMES[THEMES.length - 1].key);
+  });
+
+  it("exports json and csv through the injected downloader", () => {
+    setupDom();
+    const downloader = vi.fn();
+    const app = mount({ document, storage: null, downloader });
+    addRound(app, [1, 2, 3]);
+
+    click(document.getElementById("btnExportJson"));
+    expect(downloader).toHaveBeenCalledWith(
+      document,
+      "dice-history.json",
+      expect.stringContaining('"rolls"'),
+      "application/json",
+    );
+
+    click(document.getElementById("btnExportCsv"));
+    expect(downloader).toHaveBeenLastCalledWith(
+      document,
+      "dice-history.csv",
+      expect.stringContaining("和值"),
+      "text/csv",
+    );
+    expect(document.getElementById("exportNote").textContent).toContain("CSV");
+  });
+
+  it("copies the summary when a clipboard is available", () => {
+    setupDom();
+    const clipboard = { writeText: vi.fn() };
+    const app = mount({ document, storage: null, clipboard });
+    addRound(app, [1, 2, 3]);
+
+    click(document.getElementById("btnCopySummary"));
+
+    expect(clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining("骰局統計摘要"));
+    expect(document.getElementById("exportNote").textContent).toContain("已複製");
+  });
+
+  it("reports when no clipboard is available", () => {
+    setupDom();
+    const app = mount({ document, storage: null });
+
+    expect(app.copySummary()).toContain("尚無紀錄");
+    expect(document.getElementById("exportNote").textContent).toContain("不支援剪貼簿");
+  });
+
+  it("works without the optional panels", () => {
+    setupDom({ full: false });
+    const app = mount({ document, storage: null, downloader: vi.fn() });
+
+    app.add(2);
+    app.setTheme("neon");
+    app.exportJson();
+    app.exportCsv();
+    app.copySummary();
+    app.setTab("sums");
+    app.setFilter("big");
+    app.undo();
+    app.reset();
+
+    expect(app.getHistory()).toEqual([]);
+    expect(app.getStats().totalRolls).toBe(0);
+    expect(document.querySelector(".probability").textContent).toContain("尚無統計資料");
+  });
+
+  it("falls back to the real downloader when none is injected", () => {
+    setupDom();
+    const app = mount({ document, storage: null });
+    const created = [];
+    const original = document.createElement.bind(document);
+    const spy = vi.spyOn(document, "createElement").mockImplementation((tag) => {
+      const element = original(tag);
+      if (tag === "a") {
+        element.click = vi.fn();
+        created.push(element);
+      }
+      return element;
+    });
+
+    app.exportJson();
+    spy.mockRestore();
+
+    expect(created).toHaveLength(1);
+    expect(created[0].download).toBe("dice-history.json");
+    expect(created[0].click).toHaveBeenCalled();
+    expect(document.querySelector('a[download="dice-history.json"]')).toBeNull();
   });
 });
-
-function loadStateSnapshot(storage) {
-  const raw = storage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : null;
-}
